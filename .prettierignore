@@ -1,0 +1,22 @@
+# Generated or machine-read content: formatting it is noise at best, breakage at worst.
+.planning/
+AGENTS.md
+.agents/
+.opencode/
+.claude/
+.github/PULL_REQUEST_TEMPLATE/
+
+# The SPA owns its own Prettier config and scripts.
+frontend/
+
+# Build output, caches, dependencies
+build/
+.gradle/
+.kotlin/
+node_modules/
+dist/
+
+# Lockfiles and comment-bearing configs
+**/package-lock.json
+**/*.jsonc
+**/*.lock

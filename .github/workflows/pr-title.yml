@@ -1,0 +1,38 @@
+name: PR Title
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  title:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Validate conventional commit title
+        env:
+          # Never interpolate the title into run: directly — it is contributor-controlled.
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+
+          pattern='^(feat|fix|docs|chore|test|refactor|perf|ci|build|style|revert)(\([a-z0-9._/-]+\))?!?: .+'
+
+          if ! printf '%s' "$TITLE" | grep -Eq "$pattern"; then
+            echo "::error::PR title must be a conventional commit, for example: 'feat: add enrollment endpoint' or 'fix(command): reject duplicate enrollment'."
+            exit 1
+          fi
+
+          if [ "${#TITLE}" -gt 72 ]; then
+            echo "::error::PR title is ${#TITLE} characters; keep the header at 72 or fewer."
+            exit 1
+          fi
+
+          echo "OK: $TITLE"
