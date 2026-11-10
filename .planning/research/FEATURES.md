@@ -17,14 +17,14 @@
 | Seeded login (student + admin, no password management) | A multi-actor domain needs distinct capabilities; a demo that starts with "edit the code to change who you are" reads as a prototype | LOW | Two fixed users, session or token, no roles matrix. Seed credentials printed in the README. Must not become an auth project (see Anti-Features). |
 | Create a course with title + seat capacity | This is the source of the invariant under study; without it there is nothing to be at capacity | LOW | Static creational command handler, `CourseCreated` tagged `courseId`. Capacity fixed at creation for v1. |
 | Course catalog showing seats remaining and waitlist depth | Any capacity demo that hides the counter makes the boundary invisible; readers need to see headroom go 2 → 1 → 0 | LOW / MEDIUM | Read model projected from enrollment events. Must be a *projection*, not a re-source of the event store per request — otherwise the read side accidentally teaches the wrong thing. |
-| Enroll a student in a course with seats left | Core use case | MEDIUM | The star slice. Decision model spans course tags + student tags via `@EventCriteriaBuilder`. |
+| Enroll a student in a course with seats left | Core use case | MEDIUM | The star slice. Decision model is scoped to `courseId` by `@EventCriteriaBuilder`; `studentId` is checked from the event payload. |
 | Reject enrollment when the course is at capacity, with a specific reason | A generic 500 or a bare boolean makes the demo untrustworthy | LOW | Business rejection (e.g. `Course is full`) must be distinguishable from a technical conflict (see Differentiators). |
 | Reject duplicate enrollment | A student enrolled twice silently doubles the seat count — the invariant would be provably broken in the UI | LOW | Cheap, and it is the rule that *justifies* the student tag on the enrollment event. Don't skip it. |
-| Auto-join waitlist when full | The project's stated flow; also the only way the waitlist ever gets populated, since there is no separate "join waitlist" intent in a capacity-driven domain | LOW | Modeled as the enroll command's alternate outcome (`StudentWaitlisted`) rather than a second endpoint. |
-| Drop an enrollment, freeing the seat | Without drop there is no promotion and no second boundary story | LOW | Emits `EnrollmentDropped` tagged `courseId` + `studentId`. |
+| Explicit join waitlist when full | Capacity rejection must stay a clean business rejection; auto-joining on the same command would make the race outcome timing-dependent | LOW | A separate `JoinCourseWaitlist` command. Enroll fails with `Course is full`; the client then offers "Join waitlist". |
+| Drop an enrollment, freeing the seat | Without drop there is no promotion and no second boundary story | LOW | Emits `StudentDropped` tagged `courseId` + `studentId`. |
 | FIFO promotion of the next waitlisted student on drop | The requirement; also the invariant that proves the boundary must be *wider* than one student | MEDIUM | Ordering comes from global event order (or an explicit sequence), not from a mutable queue table. Auto-promotion, not offer-with-expiry (see Anti-Features). |
 | "My enrollments" for the signed-in student | Basic orientation; without it the student cannot tell what to drop | LOW | Second read model or a filtered projection. |
-| One-command startup, zero external services, seeded scenario data | A showcase that needs Docker, a broker, or 6 manual steps has already lost the reader | LOW / MEDIUM | Embedded/in-memory event store; seed via *real commands at startup* so the seed itself demonstrates the model. Seed should include: an open course, a full course, and a full course with a non-empty waitlist. |
+| Two documented startup commands, seeded scenario data | A showcase that needs a dozen manual steps has already lost the reader | LOW / MEDIUM | `docker compose up -d` then one Gradle run; seed via *real commands at startup* so the seed itself demonstrates the model. Seed includes an open course, a full course, and a full course with a non-empty waitlist. |
 | REST API + thin React SPA covering the above | The chosen shape (PROJECT.md); also the mechanism by which a reader can drive the demo without reading Kotlin | MEDIUM | Intention-revealing endpoints (`POST /courses/{id}/enrollments`), not generic CRUD. UI stays plain. |
 | Offline test suite (given/when/then per slice) | Axon's own teaching material is test-first; a DCB demo without tests is an assertion, not a demonstration | MEDIUM | `AxonTestFixture.with(application.configurer())` so tests use production configuration. |
 | README command walkthrough (one command end-to-end) | The stated delivery mechanism; also how a reader decides in 60 seconds whether to keep reading | LOW | Copy-pasteable curl (or UI steps) with the expected output at each hop, including the *rejected* hop. |
@@ -40,7 +40,7 @@
 | **Narrated integration tests** | Test names + comments are the only place the invariant is *executed*; narration makes the failure message itself instructive | LOW | e.g. `lastSeat_twoStudentsRace_exactlyOneEnrolls_otherIsRejectedAsFull`. Comment the interleaving, not the API. |
 | **Design note: why dynamic rather than fixed, with the aggregate counterfactual** | "Dynamic" is meaningless without the fixed boundary to compare against. Every effective DCB artifact researched does this comparison explicitly | LOW / MEDIUM | Include: the fixed-aggregate version (mega-course aggregate vs. student aggregate + saga), what each one over-locks or fails to enforce, and what a boundary change costs in each model. |
 | **Conflict vs. business rejection in the API surface** | The most under-taught distinction in DCB: "you lost a race" (409, retryable) and "the course is full" (422, not retryable) look identical to a user but are different mechanisms | LOW | Map `AppendEventsTransactionRejectedException` → 409 with a body naming the conflicting tag set; map rule violations → 422 with the rule's message. One line in the README explaining why both exist. |
-| **Race affordance: trigger the burst from HTTP/UI and show the tally** | Lets the reader *see* one success and N rejections without reading Kotlin — the demo's payoff moment | LOW / MEDIUM | e.g. `POST /demo/race` returns `{succeeded:1, rejectedAsFull:4, conflicted:0}`. Keep it a scenario trigger, not event introspection (that line is in Out of Scope). Server-side barrier required or the burst may not overlap. |
+| **Race affordance: trigger the burst from HTTP/UI and show the tally** | Lets the reader *see* one success and N rejections without reading Kotlin — the demo's payoff moment | LOW / MEDIUM | e.g. `POST /demo/race` returns `{enrolled:1, full:n-1, conflicted:0, maxInFlight:n}`. Keep it a scenario trigger, not event introspection (that line is in Out of Scope). Server-side barrier required or the burst may not overlap. |
 | **Second race: drop vs. enroll (promotion under contention)** | Proves the boundary covers *promotion*, not just capacity — the hardest and most interesting part of the domain | MEDIUM | Student A drops (promoting B) while C enrolls. Invariant: enrolled ≤ capacity at all times. Assert enrolled count never exceeds capacity and no seat is double-promoted. |
 | **"What the decision read" exhibit** | The literal claim of DCB is *narrow read*; showing it beats asserting it | LOW / MEDIUM | Cheapest honest form: a unit test asserting the criteria's tags/types (or a snapshot of its rendered form). Heavier forms (counting sourced events) slide toward the instrumentation anti-feature — keep it in a test, not a UI. |
 | **Deferred-contrast note: why no saga / automation slice** | The reference demos all use DCB *instead of* coordination; saying so, with the eventual-consistency alternative spelled out, is the conceptual payoff | LOW | Doc-only. Note that drop+promote in one append is why the saga disappears; note what would change if promotion were a separate automation. |
@@ -51,15 +51,15 @@
 | Anti-Feature | Why Requested | Why Problematic | Alternative |
 |--------------|---------------|-----------------|-------------|
 | Real authentication (OAuth/OIDC, roles, password reset, user CRUD) | "A demo should look real" | Consumes the entire scope budget and teaches nothing about boundaries; security work also invites production-hardening creep | Seeded users, printed credentials, no user management. Say so in the README in one line. |
-| Axon Server / Docker / Postgres event store | "Production parity", DCB is "fully supported" there | Contradicts the zero-friction constraint; and the extra moving part becomes the story | In-memory store (verified: it *does* enforce append conditions in-process, so the race is real). Note the single-JVM limitation honestly. |
+| In-memory event store in the running system | Zero setup, but process-local: the other services see nothing | **Superseded by the pivot** — the topology is three services, so the store must be shared | Axon Server (or, for unit tests only, the in-memory engine). |
 | Event trace UI / Axon Insights / event-store browser | "Seeing the events would be great" | Becomes the project. Also lets the reader bypass the code, which is where the boundary is | Event × tag table in the README + test output + the 409 body naming the conflicting tags. |
-| Saga / process manager / automation slice for waitlist promotion | "Promotion is a reaction to a drop — that's an automation" | Splits one atomic decision into two boundaries and introduces a real oversell window; the demo would then need compensating logic — exactly the complexity DCB removes | One command, one append: `DropEnrollment` decides and emits both `EnrollmentDropped` and `WaitlistPromoted`. Discuss the alternative in the design note, don't build it. |
+| Saga / process manager / automation slice for waitlist promotion | "Promotion is a reaction to a drop — that's an automation" | Splits one atomic decision into two boundaries and introduces a real oversell window; the demo would then need compensating logic — exactly the complexity DCB removes | One command, one append: `DropEnrollment` decides and emits both `StudentDropped` and `WaitlistPromoted`. Discuss the alternative in the design note, don't build it. |
 | Waitlist offers with expiry / notifications / accept-decline | Industry-standard LMS behavior; "more realistic waitlist" | Adds a time dimension, a scheduler, and a second source of truth for "who holds the seat". Timers obscure the boundary story completely | Auto-promote the next FIFO student immediately. One sentence in the design note on why an offer model would need deadlines. |
 | Pessimistic locking / `synchronized` / blanket command sequencing to "fix" the race | The race "fails" in a test and locking makes it pass | This *is* the failure mode the demo exists to refute: it hides the append condition and replaces an optimistic check with a lock | Let the append condition reject. If sequencing must be discussed, show it as a deliberate opt-out for the race (see Feature Dependencies). |
 | Unlimited automatic retry on append conflict | "Better UX, the user shouldn't see a 409" | Retries until the state changes, then reports "full" — the conflict mechanism becomes invisible, and retry storms are a real operational hazard | Zero retries by default (so the mechanism is observable); document the single-retry idiom in the design note as the production answer. |
 | Making one giant `Course` aggregate that contains all students | "Then the capacity check is trivial" | It is exactly the over-locking, low-cohesion model DCB exists to replace — and the demo would then be unable to show why the boundary is dynamic | Dynamic criteria over `courseId` + `studentId`; the design note names the mega-aggregate as the counterfactual. |
 | Generic CRUD endpoints / resource-oriented PUTs / admin data tables | "RESTful, predictable" | Collapses intention-revealing commands into state replacement; the reader cannot see the decision that the boundary protects | `POST …/enrollments`, `DELETE …/enrollments/{studentId}`-style intents with named commands inside. |
-| Current-state table as the source of truth (dual-write, "for querying") | "Queries are easier against a table" | Two sources of truth; the demo now has to explain reconciliation, which is orthogonal and confusing | Projections derived from events only, rebuilt on startup. |
+| Current-state table as the source of truth (dual-write, "for querying") | "Queries are easier against a table" | Two sources of truth; the demo now has to explain reconciliation, which is orthogonal and confusing | Projections derived from events only, persisted in PostgreSQL, rebuildable by replay (v2). |
 | Seeding by writing events directly / importing fixtures into the store | "Faster startup" | The seed bypasses the model, so the seeded state may violate invariants the demo later claims to enforce; also unteachable | Seed by dispatching real commands at startup. |
 | Priority points, admin override, overbooking, group bookings, transfers, refunds, grading, attendance, email | "Real courses have these" | Each one is a policy surface that dilutes the single seat-cap invariant and multiplies UI states | Name them in a "deliberately out of scope" README section — that list is itself evidence the author understood the domain. |
 | Client-side seat counting / optimistic UI that shows a seat before the append commits | "Feels instant" | Lies exactly at the moment the demo is about; a reader who clicks fast sees the UI disagree with the server | Disable the button on the server's answer; refresh from the read model after the command returns. |
@@ -75,7 +75,7 @@
 | The contrast *is* the explanation | `maxzillabong/axon-5-dcb-demo` frames itself as "Axon 4: ~120 LOC + saga; DCB: ~30 LOC". `dcb.events` shows the aggregate repository, then the DCB repository, on the same model | Ship the counterfactual in the design note (and optionally a `docs/fixed-boundary.md` walkthrough). This is the cheapest high-value differentiator. |
 | Tests are the spine, not an appendix | Axon's Getting Started is structured slice-by-slice with GWT tests shown in the README; `university-demo` documents "write slice: given→when→then" as *the* method | Make the race test the "hero" artifact linked from the top of the README. |
 | The boundary must be visible in one screen | The reference explicitly demonstrates a `@EventCriteriaBuilder` per entity and prints an "Event Types × Tags" table per command | One annotated criteria method + one table in the README. Do not scatter boundary logic across helpers. |
-| Runnable without infrastructure | `university-demo` documents the in-memory store specifically for testing/dev, and keeps Axon Server optional | Matches the constraint. Make the first README command `./gradlew bootRun`, not `docker compose up`. |
+| Runnable with minimal infrastructure | `university-demo` keeps Axon Server optional; this project deliberately does not | Pivot: the README's first command is `docker compose up -d`, followed by one Gradle run that starts all three services. |
 | The domain language stays honest | `dcb.events` reference uses `require … else reject "Course is full"` — rejection messages are part of the model | Use one canonical rejection message per rule, and reuse it verbatim in tests, README and API responses. |
 
 ---
@@ -87,26 +87,26 @@
     └──requires──> [Role-gated UI/API]
 
 [Create course (title + capacity)]
-    └──requires──> [Event store + command bus wiring]
-    └──enables──>  [Course catalog read model]
+    ├──requires──> [Event store + command bus wiring]
+    └──enables───> [Course catalog read model]
 
 [Enroll (DCB boundary)]
     ├──requires──> [Create course]
-    ├──requires──> [Decision model spanning courseId + studentId tags]
+    ├──requires──> [Decision model scoped to courseId, student checked from payload]
     ├──requires──> [Duplicate-enrollment rule]
-    └──enables──>  [Capacity rejection]
-                       └──enables──> [Auto-waitlist join]
-                                          └──enables──> [Waitlist depth read model]
+    ├──enables───> [Capacity rejection]
+    ├──enables───> [Explicit waitlist join]
+    └──enables───> [Waitlist depth read model]
 
 [Drop]
     ├──requires──> [Enroll]
-    └──enables──>  [FIFO promotion]
-                       ├──requires──> [Ordering source (global event order / explicit sequence)]
-                       └──requires──> [Atomic drop+promote in one append]
+    ├──requires──> [Ordering source (global event order / explicit sequence)]
+    ├──requires──> [Atomic drop+promote in one append]
+    └──enables───> [FIFO promotion]
 
 [Last-seat race test]
     ├──requires──> [Enroll + capacity rejection]
-    ├──requires──> [In-process append-condition enforcement]
+    ├──requires──> [Append-condition enforcement by Axon Server]
     └──conflicts──> [Same-course command sequencing]
 
 [Mechanism proof test]
@@ -135,12 +135,12 @@
 
 ### Dependency Notes
 
-- **Everything read-side depends on the tag set.** Tags are a schema decision: once `EnrollmentEvent` carries `courseId` + `studentId`, both the course-count and per-student reads are possible. Decide the event × tag table in phase 1, before any slice code — changing tags later is an event-migration problem (the exact pain DCB is meant to avoid).
+- **Everything read-side depends on the tag set.** Tags are a schema decision: once `EnrollmentEvent` carries `courseId` + `studentId`, both the course-count and per-student reads are possible. Decide the event × tag table in Phase 3, before any slice code — changing tags later is an event-migration problem (the exact pain DCB is meant to avoid).
 - **Drop+promote atomicity is the pivot of the whole design.** If promotion is a separate command/automation, `Drop` and `Promote` have two boundaries and the invariant needs coordination. Building it as one command is *cheaper* and is the differentiator for the design note; the reverse order (automation first) would force a rewrite.
-- **The race test constrains command wiring, not just the test.** Axon 5 enables command sequencing by routing key by default (`CommandSequencingInterceptor` + `RoutingKeySequencingPolicy`, default since 5.0.3). If the enroll command declares `@Command(routingKey = "courseId")`, same-course commands are serialized *before* the handler, and the append conflict never fires. Either route the enroll command by `studentId` (two racing students → different sequence identifiers → real concurrency) or explicitly opt out for the demo (`NoOpSequencingPolicy`). **This is a build-order hazard: discover it in phase 2, not phase 4.**
+- **The race test constrains command wiring, not just the test.** Axon 5 enables command sequencing by routing key by default (`CommandSequencingInterceptor` + `RoutingKeySequencingPolicy`, default since 5.0.3). If the enroll command declares `@Command(routingKey = "courseId")`, same-course commands are serialized *before* the handler, and the append conflict never fires. **Project decision: `EnrollStudent` carries no routing key**, so enrollments run concurrently. **This is a build-order hazard: prove it in Phase 4** by adding a `courseId` key temporarily and watching the conflict disappear.
 - **The timing (`@TargetEntityId` vs routing key) is a trap for the unwary.** In AF5, `@TargetEntityId` only selects which entity to load; sequential handling comes from `@Command(routingKey = …)`. Omitting `routingKey` compiles and passes unit tests while allowing parallel handling — the mirror image of the race hazard above.
 - **Promotion ordering depends on a monotonic source.** FIFO needs a total order across waitlist joins. Global event position works within one bounded context; do not introduce a mutable `queuePosition` column (it becomes a second source of truth and a lock).
-- **UI "seats left" depends on the read model being synchronous enough.** With a subscribing (non-tracking) processor in the same JVM, the POST response and the subsequent GET are consistent in practice. If the read model is async, the demo will *look* broken right after the race — flag it explicitly rather than adding polling.
+- **UI "seats left" lags the write.** The projection is a separate process with a tracking processor, so the POST returns before the read model updates. The demo must show a pending state and refetch (VIEW-02) instead of pretending consistency; never compute seat counts client-side.
 - **The mechanism-proof test depends on the race test existing** and on being able to observe the exception; it is deliberately not the MVP (the race test alone satisfies the requirement) but it is what makes the demo resistant to the "maybe it was just serialized" objection.
 
 ---
@@ -153,9 +153,10 @@
 - [ ] Create course with capacity — the invariant's source
 - [ ] Enroll with capacity + duplicate rules inside one dynamic boundary — the star slice
 - [ ] Reject at capacity with a named reason — makes the rule observable
-- [ ] Auto-waitlist on full — fills the queue without a separate intent
+- [ ] Explicit waitlist join after a `Course is full` rejection — keeps the race outcome deterministic
 - [ ] Drop, freeing the seat, promoting next FIFO atomically — the second half of the boundary story
 - [ ] Course catalog (seats left, waitlist depth) + my enrollments — the read side that lets a human drive the demo
+- [ ] Live read-model updates over SSE (snapshot + pushed changes, no polling) — makes eventual consistency visible instead of hidden
 - [ ] Last-seat race test asserting exactly one success — the Core Value, executable
 - [ ] Boundary annotations at the criteria builder + handler — where the lesson lives
 - [ ] README command walkthrough (one command end-to-end) — the stated delivery path
@@ -165,13 +166,11 @@
 
 ### Add After Validation (v1.x) — only if the demo already runs end-to-end
 
-- [ ] Mechanism-proof test (assert the losing append fails on the append condition) — closes the "maybe it was serialized" hole
-- [ ] Conflict → 409 / rejection → 422 mapping in the API — teaches the distinction cheaply
-- [ ] Race affordance (`POST /demo/race` + UI button with tally) — turns the test into a visible moment
-- [ ] Event × tag table in the README — highest teaching value per line of work
+Mechanism proof (RACE-03), 409/422 mapping (PLAT-04), the race affordance (RACE-01) and the event × tag table (DOCS-05) are **v1**, not v1.x — the independent review showed the proof is worthless without them.
+
 - [ ] Drop-vs-enroll race test — extends the proof to promotion
 - [ ] Criteria exhibit test ("what the decision read") — makes "narrow read" checkable
-- [ ] `ChangeCourseCapacity` slice — a 20-line proof that capacity changes share the same boundary (and a good second example once the first is understood)
+- [ ] `ChangeCourseCapacity` slice — a `docs`-only counterfactual note; the slice itself is v2 (CRSE-04)
 
 ### Future Consideration (v2+)
 
@@ -196,10 +195,10 @@
 | Create course + catalog + my enrollments | MEDIUM | LOW | P1 |
 | Seeded login | MEDIUM | LOW | P1 |
 | One-command startup + seed data | HIGH | LOW | P1 |
-| Event × tag table | HIGH | LOW | P2 |
-| Conflict vs rejection mapping | MEDIUM | LOW | P2 |
-| Mechanism-proof test | HIGH | MEDIUM | P2 |
-| Race affordance (endpoint/button) | HIGH | LOW | P2 |
+| Event × tag table | HIGH | LOW | P1 |
+| Conflict vs rejection mapping | MEDIUM | LOW | P1 |
+| Mechanism-proof test | HIGH | MEDIUM | P1 |
+| Race affordance (endpoint/button) | HIGH | LOW | P1 |
 | Drop-vs-enroll race test | MEDIUM | MEDIUM | P2 |
 | Criteria exhibit test | MEDIUM | LOW | P2 |
 | `ChangeCourseCapacity` slice | MEDIUM | LOW | P3 |
@@ -214,7 +213,7 @@
 | Feature | AxonIQ `university-demo` | `dcb.events` course subscriptions | `maxzillabong/axon-5-dcb-demo` | Our Approach |
 |---------|--------------------------|-----------------------------------|-------------------------------|--------------|
 | Domain | University faculty: students + courses with capacity | Courses + students, subscription counts | Bank transfer between two accounts | Course enrollment with capacity + waitlist |
-| Boundary shape | Split decision models per slice (`SubscribeStudentToCourse` with its own `State`) | Projections per tag, reads combined per command | Two entities injected in one handler | One decision model per command, criteria = course tags OR student tags |
+| Boundary shape | Split decision models per slice (`SubscribeStudentToCourse` with its own `State`) | Projections per tag, reads combined per command | Two entities injected in one handler | One decision model per command, criteria scoped to `courseId`; `studentId` is checked from the payload; `either(...)` is the v2 widening |
 | Capacity invariant | Yes (`Course is fully booked`) | Yes | N/A (balance invariant) | Yes — the star |
 | Per-student limit | Yes (max 3) | Yes (max 5) | N/A | Not in v1 (duplicate rule instead) |
 | Capacity editing | Yes (`CourseCapacityChanged`) | Yes | No | Deferred (P3) |
@@ -222,7 +221,7 @@
 | Frontend | None (API/tests only) | Notation + prose | None | React SPA + REST |
 | Concurrency demo | Implicit in tests | Scenarios (no concurrency) | Not a focus | **Explicit race test + optional race trigger** |
 | Teaching artifacts | README with event model, slice structure, GWT example | Notation + per-command read/tag tables + scenario lists | 4.x-vs-5 LOC comparison | README walkthrough + annotations + narrated tests + design note + tag table |
-| Runtime | Axon Server (default) or in-memory | Language-agnostic spec | Maven + in-memory | In-memory only, one command |
+| Runtime | Axon Server + PostgreSQL | Language-agnostic spec | Maven + Axon Server | Three services, compose + one Gradle run |
 
 **Gap analysis:** none of the reference implementations analyzed above models a waitlist at all. That is both the differentiator and the risk — there is no upstream pattern to copy for atomic drop+promote, so the design note has to carry that argument itself. Everything else has a precedent to lean on. (Claim scope: limited to the projects analyzed; other DCB demos may exist that were not surveyed.)
 

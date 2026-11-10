@@ -18,7 +18,7 @@
   "perplexity": false,
   "jina": false,
   "git": {
-    "branching_strategy": "none",
+    "branching_strategy": "phase",
     "create_tag": true,
     "repo_tagging": "single",
     "phase_branch_template": "gsd/phase-{phase}-{slug}",
@@ -62,7 +62,7 @@
       {
         "heading": "User Stories & Acceptance Criteria",
         "enabled": true,
-        "source": "REQUIREMENTS.md ## User Stories || REQUIREMENTS.md ## Acceptance Criteria",
+        "source": "REQUIREMENTS.md ## v1 Requirements || REQUIREMENTS.md ## Traceability",
         "fallback": "- Acceptance criteria are covered by the linked requirements and verification evidence."
       },
       {
@@ -97,5 +97,5 @@
   },
   "resolve_model_ids": "omit",
   "mode": "yolo",
-  "granularity": "standard"
+  "granularity": "fine"
 }
