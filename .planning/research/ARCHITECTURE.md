@@ -66,8 +66,8 @@ Axon Framework 5 has an opinionated answer, and the project should follow it alm
 
 | Component | Owns | Typical implementation |
 |---|---|---|
-| `enrollment/events/*` | The event contract. Every fact, with its `@EventTag`s and payload. | Java records; one record per file; `@EventTag(key = "courseId") CourseId courseId` etc. |
-| `write/<slice>/` | One use case: the command record, the handler's `decide(...)` rules, the private decision state, and the `@EventCriteriaBuilder` that names the boundary | `@Component` handler class + nested (or top-level) `@EventSourced` state class |
+| `enrollment/events/*` | The event contract. Every fact, with its `@EventTag`s and payload. | Kotlin data classes; one class per file; `@EventTag(key = "courseId") val courseId: CourseId` etc. |
+| `write/<slice>/` | One use case: the command data class, the handler's `decide(...)` rules, the private decision state, and the `@EventCriteriaBuilder` that names the boundary | `@Component` handler class + nested (or top-level) `@EventSourced` state class; `@JvmStatic` companion for the criteria builder |
 | `@EventCriteriaBuilder` | **The dynamic boundary itself** — tags + event types this decision is allowed to see | static method returning `EventCriteria`, usually `EventCriteria.either(...)` |
 | `read/<slice>/` | A projection (`@EventHandler`), its read-model record, its repository, its `@QueryHandler` | plain Spring beans + in-memory `ConcurrentHashMap` repository |
 | REST controllers | Translate HTTP ↔ Axon messages; no business rules | `@RestController` calling `CommandGateway` / `QueryGateway` |
@@ -122,7 +122,7 @@ Three teaching points fall out of this table and belong in the design note:
 
 ```
 axon5-showcase/
-├── pom.xml                                  # single Maven module, Java 21, Spring Boot 3.5+/4
+├── build.gradle.kts                          # single Gradle module, Kotlin/JVM 21, Spring Boot 3.5+
 ├── README.md                                # the end-to-end trace
 ├── docs/
 │   ├── design-note.md                       # why the boundary is dynamic

@@ -7,7 +7,7 @@
 
 ## Executive Summary
 
-This is not a product; it is a lesson. The reader must come away understanding that a Dynamic Consistency Boundary (DCB) lets a command decide over exactly the events its invariant needs, and that the event store — not the handler, not a database transaction — rejects the loser of a race for the last seat. Experts building this kind of showcase keep one small domain, one hard invariant (seat capacity), a boundary that is visible on one screen, and tests that are the spine of the project. AxonIQ's own `university-demo` and the `dcb.events` course-subscriptions example confirm this shape. The recommended build is Java 21, Spring Boot 3.5.16, Axon Framework 5.4.1 via the OSS starter only, an explicit `InMemoryEventStorageEngine` bean, Maven, and a React 19 / Vite / TypeScript SPA that talks to `/api` through a dev proxy.
+This is not a product; it is a lesson. The reader must come away understanding that a Dynamic Consistency Boundary (DCB) lets a command decide over exactly the events its invariant needs, and that the event store — not the handler, not a database transaction — rejects the loser of a race for the last seat. Experts building this kind of showcase keep one small domain, one hard invariant (seat capacity), a boundary that is visible on one screen, and tests that are the spine of the project. AxonIQ's own `university-demo` and the `dcb.events` course-subscriptions example confirm this shape. The recommended build is Kotlin on JDK 21, Spring Boot 3.5.16, Axon Framework 5.4.1 via the OSS starter only, an explicit `InMemoryEventStorageEngine` bean, Gradle Kotlin DSL (project decision — research assumed Java/Maven), and a React 19 / Vite / TypeScript SPA that talks to `/api` through a dev proxy.
 
 The recommended approach is to treat the enroll decision as the hinge. Each command gets its own `@EventSourced` decision state and an annotated `@EventCriteriaBuilder` that names the tags and event types it depends on (`courseId` plus the event types that can change seats or membership). Enrollment stays unkeyed for command routing so racing enrollments really run concurrently. Drop and FIFO promotion are one command that appends `StudentDropped` and `WaitlistPromoted` in a single append, so promotion is never a separate automation. Read models are in-memory projections used only for display; command handlers never read them. The last-seat race is proven by a barrier-driven test with a negative control, not by a sleep-and-count test.
 
@@ -17,13 +17,13 @@ The key risks are all about the lesson being silently wrong while tests stay gre
 
 ### Recommended Stack
 
-Java 21 (hard minimum for AF5), Spring Boot 3.5.16 (the version Axon 5.4.1 builds and tests against), Axon Framework BOM 5.4.1, and `org.axonframework.extensions.spring:axon-spring-boot-starter` 5.4.1 (OSS; no Axon Server connector). Import the Jackson 3 BOM before the Spring Boot BOM so Jackson 3 payloads serialize correctly. Frontend: React 19.3.1, Vite 8.3.7, TypeScript 7.0.x (pinned by `create-vite` react-ts), `@tanstack/react-query` 5.x for refetch-after-command. No component library, no state manager, no router unless the second screen earns it.
+Kotlin on JDK 21 (AF5's hard floor; language is a project decision), Spring Boot 3.5.16 (the version Axon 5.4.1 builds and tests against), Axon Framework BOM 5.4.1, and `org.axonframework.extensions.spring:axon-spring-boot-starter` 5.4.1 (OSS; no Axon Server connector). Import the Jackson 3 BOM before the Spring Boot BOM so Jackson 3 payloads serialize correctly. Frontend: React 19.3.1, Vite 8.3.7, TypeScript 7.0.x (pinned by `create-vite` react-ts), `@tanstack/react-query` 5.x for refetch-after-command. No component library, no state manager, no router unless the second screen earns it. **Kotlin interop is unverified by research** — annotation targets (`@EventTag`), `@EventCriteriaBuilder` statics via `@JvmStatic`, and Jackson Kotlin-module binding must be settled in Phases 1–2.
 
 **Core technologies:**
 - **Axon Framework 5.4.1 (OSS starter, `axon-eventsourcing` / `axon-messaging`):** DCB-capable event store, `@EventSourced`, `@EventCriteriaBuilder`, `@InjectEntity` — the entire lesson lives here.
 - **`InMemoryEventStorageEngine` (explicit `@Bean`):** zero infrastructure; source implements append-condition conflict detection, per-tag conflict checks, and consistency markers. Declare it explicitly so no auto-config can silently swap it.
 - **Spring Boot 3.5.16 + Spring MVC + Spring Security (session, in-memory users):** app runtime and seeded login.
-- **Maven wrapper:** single command `./mvnw spring-boot:run`; BOM import is unambiguous.
+- **Gradle wrapper + Kotlin DSL:** single command `./gradlew bootRun`; `build.gradle.kts` imports Jackson 3 first, then the Axon BOM.
 - **React 19 + Vite 8 + TypeScript + TanStack Query:** thin SPA; Vite proxy `/api` → `:8080` removes CORS.
 
 **Critical version/config constraints:**
@@ -42,7 +42,7 @@ Java 21 (hard minimum for AF5), Spring Boot 3.5.16 (the version Axon 5.4.1 build
 - Rejection with a specific business reason ("Course is full"), distinct from technical conflict.
 - Drop an enrollment, freeing the seat, with atomic FIFO promotion of the next waitlisted student.
 - "My enrollments" for the signed-in student.
-- One-command startup (`./mvnw spring-boot:run`), zero external services, seeded scenario data created through real commands (open course, full course, full course with waitlist).
+- One-command startup (`./gradlew bootRun`), zero external services, seeded scenario data created through real commands (open course, full course, full course with waitlist).
 - REST API and thin React SPA covering the above.
 - Given/when/then tests via `AxonTestFixture.with(application.configurer())` per slice.
 - README command walkthrough with expected output, including the rejected hop.
@@ -67,8 +67,8 @@ Java 21 (hard minimum for AF5), Spring Boot 3.5.16 (the version Axon 5.4.1 build
 A single bounded context `enrollment`, vertical slices with feature folders (`write/<use-case>/`, `read/<screen>/`, `events/`, `web/`, `seed/`, `config/`). Each command is a `@Component` handler with one `@CommandHandler`, a private `@EventSourced` decision state, and one `@EventCriteriaBuilder` that is the boundary. Events in `events/` are the contract that every slice depends on. The write side and the read side depend only on events; they never depend on each other. Controllers are thin adapters over `CommandGateway` and `QueryGateway`. Seeding dispatches real commands through the gateway.
 
 **Major components:**
-1. **`events/`** — event records with `@EventTag` on `courseId` and `studentId`; the only shared contract.
-2. **`write/<slice>/`** — command record, handler with `decide(...)`, decision state, `@EventCriteriaBuilder`. Each slice has its own state class; never share one.
+1. **`events/`** — event data classes with `@EventTag` on `courseId` and `studentId`; the only shared contract.
+2. **`write/<slice>/`** — command data class, handler with `decide(...)`, decision state, `@EventCriteriaBuilder`. Each slice has its own state class; never share one.
 3. **`read/<screen>/`** — `@EventHandler` projection → in-memory `ConcurrentHashMap` repository → `@QueryHandler`. Display only.
 4. **`web/`** — REST controllers + `ApiExceptionHandler` (maps conflict → 409 with conflicting tags, rule violation → 422 with the canonical message).
 5. **`config/`** — `AxonConfig` (explicit `InMemoryEventStorageEngine`), `SecurityConfig` (seeded users, session cookie, CSRF decision), principal → `studentId`.
@@ -104,7 +104,7 @@ Suggested phases (7). Ordering follows the dependency chain in ARCHITECTURE.md (
 
 ### Phase 2: Event contract and tag vocabulary
 **Rationale:** Tags are a schema decision; changing them later is an event-migration problem. Every later slice depends on this contract.
-**Delivers:** Event records (`CourseCreated`, `CourseCapacityChanged`, `StudentEnrolled`, `StudentDropped`, `WaitlistJoined`, `WaitlistPromoted`) with frozen names; tag-key constants used by both `@EventTag` and criteria builders; typed ids with `toString()` returning raw values; event × tag table committed to `docs/`; stored-tag-set assertion helper; test conventions (unique ids per test, one fixture per test, no sleeps).
+**Delivers:** Event data classes (`CourseCreated`, `CourseCapacityChanged`, `StudentEnrolled`, `StudentDropped`, `WaitlistJoined`, `WaitlistPromoted`) with frozen names; tag-key constants used by both `@EventTag` and criteria builders; typed ids with `toString()` returning raw values; event × tag table committed to `docs/`; stored-tag-set assertion helper; test conventions (unique ids per test, one fixture per test, no sleeps).
 **Addresses:** Event × tag table (P2 differentiator foundation).
 **Avoids:** M2 (tag key/value drift), M3 (renaming breaks history), C7 (missing subject tags), m6 (seed bypassing commands).
 
@@ -154,12 +154,12 @@ Suggested phases (7). Ordering follows the dependency chain in ARCHITECTURE.md (
 ### Research Flags
 
 Phases likely needing deeper research during planning (`/gsd-plan-phase --research-phase`):
-- **Phase 1:** Verify DCB conflict detection in `InMemoryEventStorageEngine` on 5.4.1 with the OSS starter — docs and source contradict; the spike is the research. Also confirm the Jackson 3 + record payload path.
+- **Phase 1:** Verify DCB conflict detection in `InMemoryEventStorageEngine` on 5.4.1 with the OSS starter — docs and source contradict; the spike is the research. Also confirm the Jackson 3 + Kotlin data-class payload path and that Kotlin annotation targets on events are honoured.
 - **Phase 4:** Confirm `@EventSourced` nested state with composite `idType` on the OSS starter (the verified example uses the commercial starter); confirm exception wrapping at the HTTP edge and property keys for processor mode.
 - **Phase 6:** Confirm the default sequencing policy on 5.4.1 and whether any retry policy is active by default (affects `rejectedByBoundary` vs `rejectedByRule` tally).
 
 Phases with standard patterns (skip research-phase):
-- **Phase 2:** Event records, tag constants, and a stored-tag assertion are plain Java/Axon conventions.
+- **Phase 2:** Event data classes, tag constants, and a stored-tag assertion are plain Kotlin/Axon conventions.
 - **Phase 3:** Standard command slice, in-memory projection, Spring MVC controller, React list.
 - **Phase 5:** Pattern is already settled by Phase 4; the drop+promote single append is the documented DCB pattern.
 - **Phase 7:** Documentation phase; no research needed beyond writing from working code.
@@ -182,7 +182,7 @@ Phases with standard patterns (skip research-phase):
 - **Automatic retry on conflict:** ARCHITECTURE and FEATURES assume zero retries (so the 409 is observable); PITFALLS M1 recommends one re-dispatch at the edge. Recommended resolution: zero retries in the default path, 409 mapping in the API, single-retry documented as the production idiom in the design note. Confirm no default retry policy is active on 5.4.1 (affects the tally labels).
 - **`@EventSourced` composite id and nested state on the OSS starter:** verified only in the commercial-starter example. Confirm in Phase 4 with a boot test; fallback is registering the entity module manually as a bean.
 - **Exception wrapping at the HTTP edge:** confirm whether `CommandGateway` wraps `AppendEventsTransactionRejectedException` in `CommandExecutionException`, so the 409 mapping matches runtime, not the class name.
-- **Jackson 3 record payloads on Spring Boot 3.5.16:** confirm `tools.jackson` is used for event conversion rather than silently falling back to Jackson 2. `Jackson2Converter` is the documented escape hatch.
+- **Jackson 3 data-class payloads on Spring Boot 3.5.16:** confirm `tools.jackson` is used for event conversion rather than silently falling back to Jackson 2. `Jackson2Converter` is the documented escape hatch.
 - **Subscribing processor property keys:** confirm `axon.eventhandling.processors.<name>.mode=subscribing` resolves in 5.4.1's `EventProcessorProperties`.
 - **TypeScript 7.0.x with `@tanstack/react-query` types:** low risk; the first `npm run build` is the check.
 - **Security decision:** CSRF handling for the SPA (STACK/ARCH suggest cookie-based CSRF or a documented ignore for `/api/**`). Decide in Phase 1 and freeze.

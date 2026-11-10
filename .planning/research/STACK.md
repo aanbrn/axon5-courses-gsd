@@ -12,12 +12,12 @@
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| Java (Temurin JDK) | **21** (min 21) | Runtime / language level | Official AF5 prerequisites page: "JDK 21 is the absolute minimum baseline". Records underpin AF5's immutable entities, so this is a hard requirement, not a preference. JDK 25 is also installed locally and satisfies "21 or higher", but 21 is what Axon builds and tests against. |
+| Kotlin on JDK 21 | **Kotlin 2.4.21** (latest stable on Maven Central; 2.5.0 is still Beta as of 2026-10-21), `jvmToolchain(21)` | Language / JVM | **Project decision — Kotlin instead of Java.** AF5's hard floor is JDK 21 (official prerequisites); Kotlin compiles to that target. Kotlin data classes replace Java records for immutable events, but annotation targets differ — see "Kotlin adaptation" below for the interop risks to settle in Phases 1–2. |
 | Spring Boot | **3.5.16** | App runtime, DI, web | Axon 5.4.1's own parent POM pins `spring.boot.version=3.5.16` — it is the version Axon builds and runs its test matrix on. Official AF5 examples pin the same. Boot 4 is supported but adds Jackson 3 + modular starter churn that competes with the actual lesson. |
 | Axon Framework BOM | **5.4.1** (`org.axonframework:axon-framework-bom`) | Version alignment for all Axon modules | Latest release on Maven Central (`latest=5.4.1`, metadata updated 2026-10-21). The BOM manages main modules **and** OSS Spring extensions (`axon-spring`, `axon-spring-boot-starter`, `axon-spring-boot-starter-test`), so you never hand-write an Axon version twice. |
 | Axon Spring Boot Starter (OSS) | **5.4.1** (`org.axonframework.extensions.spring:axon-spring-boot-starter`) | Auto-config: handler/entity discovery, buses, processors | It is still published under `org.axonframework.extensions.spring` at 5.4.1 (verified in `maven-metadata.xml`). Its POM pulls only `axon-spring-boot-autoconfigure`, `axon-spring`, `axon-eventsourcing`, `axon-messaging`, `axon-modelling` — **no Axon Server connector**, which is exactly what a no-Docker app wants. |
 | Embedded event store | `InMemoryEventStorageEngine` (in `axon-eventsourcing`, no extra artifact) | DCB-capable event store in-process | Zero infrastructure, and it is the default `EventStorageEngine` registered by `EventSourcingConfigurationDefaults`. Its source implements the full DCB contract: `AppendCondition` + per-tag conflict detection + `ConsistencyMarker` + tag/type-filtered `SourcingCondition`. |
-| Maven | 3.9.x + `mvnw` | Build | Both official Axon University examples and the `axon-framework-bom` docs are Maven-first; Maven's BOM import is unambiguous. Gradle works but buys nothing here. |
+| Gradle | 8.14.x wrapper + **Kotlin DSL** (`build.gradle.kts`) | Build | **Project decision — Gradle Kotlin DSL over the research recommendation (Maven).** BOM imports map to `dependencyManagement { imports { mavenBom(…) } }` (first imported wins, same as Maven); startup is `./gradlew bootRun`. Pin the wrapper with `gradle wrapper --gradle-version 8.14.3` and verify the Spring Boot 3.5.16 plugin on Gradle 9 before upgrading. |
 | React | **19.3.1** | SPA UI | Current `latest` on npm; what `create-vite@9.3.4`'s `template-react-ts` pins. |
 | Vite | **8.3.7** | Dev server + build | Current `latest`; instant HMR, no config needed for a proxy to the Spring backend. |
 | TypeScript | **7.0.2** | Frontend types | Pinned as `~7.0.2` by the official `create-vite` React-TS template, so it is the mainstream default rather than an edge case. |
@@ -26,7 +26,7 @@
 
 | Artifact | Group | Purpose | Notes |
 |----------|-------|---------|-------|
-| `axon-framework-bom` | `org.axonframework` | BOM | `type=pom`, `scope=import` in `<dependencyManagement>` |
+| `axon-framework-bom` | `org.axonframework` | BOM | Maven: `type=pom`, `scope=import`; Gradle: `dependencyManagement { imports { mavenBom … } }` |
 | `axon-spring-boot-starter` | `org.axonframework.extensions.spring` | Auto-config | Pulls the four modules below transitively; declare alone |
 | `axon-eventsourcing` | `org.axonframework` | `EventStore`, `EventStorageEngine`, `@EventTag`, `EventCriteria`, entities | Source of `InMemoryEventStorageEngine` (`...eventsourcing.eventstore.inmemory`) |
 | `axon-messaging` | `org.axonframework` | `@CommandHandler`, `@EventHandler`, `@QueryHandler`, `EventAppender`, `Tag` | `Tag` lives in `org.axonframework.messaging.eventstreaming` |
@@ -48,7 +48,7 @@ Deliberately **no** component library, CSS framework, or state manager. The UI i
 
 | Tool | Purpose | Notes |
 |------|---------|-------|
-| Maven Wrapper | Reproducible backend build | `./mvnw spring-boot:run` is the single startup command |
+| Gradle Wrapper | Reproducible backend build | `./gradlew bootRun` is the single startup command |
 | `npm` (11.19.0) + Vite | Frontend dev/build | `npm run dev`; configure `server.proxy['/api'] → http://localhost:8080` so there is no CORS config |
 | `AxonTestFixture` | Behaviour tests | `AxonTestFixture.with(application.configurer())` against the *production* configurer — the pattern AxonIQ's own University demo uses |
 | Spring Boot Actuator | `/actuator/health` sanity check | Optional; do not build monitoring around it |
@@ -115,36 +115,44 @@ Declaring it makes the intent visible (the file is a showcase), and it hard-bloc
 
 ### The shape of a DCB command handler (verified against Axon's University example)
 
-```java
+```kotlin
 @Component
 class EnrollStudentCommandHandler {
 
     @CommandHandler
-    void handle(EnrollStudent cmd, @InjectEntity State state, EventAppender appender) {
-        if (state.seatsTaken() >= state.capacity()) {
-            throw new IllegalStateException("Course is fully booked"); // exactly one of N concurrent callers lands here
+    fun handle(cmd: EnrollStudent, @InjectEntity state: State, appender: EventAppender) {
+        if (state.seatsTaken >= state.capacity) {
+            throw IllegalStateException("Course is fully booked")   // exactly one of N concurrent callers lands here
         }
-        appender.append(new StudentEnrolled(cmd.courseId(), cmd.studentId()));
+        appender.append(StudentEnrolled(cmd.courseId, cmd.studentId))
     }
 
-    @EventSourced(idType = EnrollmentBoundaryId.class)     // the *scope* of the decision, not an aggregate root
-    static final class State {
-        // only the fields this decision needs — this is the whole point of DCB
-        @EntityCreator public State() {}
+    @EventSourced(idType = EnrollmentBoundaryId::class)   // the *scope* of the decision, not an aggregate root
+    class State {                                         // Kotlin nested class = static nested, as Axon expects
+        var capacity: Int = 0
+        var seatsTaken: Int = 0
 
-        @EventSourcingHandler void on(CourseCreated e)      { /* capacity */ }
-        @EventSourcingHandler void on(CourseCapacityChanged e) { /* capacity */ }
-        @EventSourcingHandler void on(StudentEnrolled e)    { /* seatsTaken++ */ }
-        @EventSourcingHandler void on(StudentDropped e)     { /* seatsTaken-- */ }
+        @EntityCreator
+        constructor()
 
-        // ← the dynamic boundary lives here
-        @EventCriteriaBuilder
-        private static EventCriteria resolveCriteria(CourseId courseId) {
-            return EventCriteria.havingTags(Tag.of("courseId", courseId.toString()))
-                                .andBeingOneOfTypes(CourseCreated.class.getName(),
-                                                    CourseCapacityChanged.class.getName(),
-                                                    StudentEnrolled.class.getName(),
-                                                    StudentDropped.class.getName());
+        @EventSourcingHandler fun on(e: CourseCreated) { capacity = e.capacity }
+        @EventSourcingHandler fun on(e: CourseCapacityChanged) { capacity = e.capacity }
+        @EventSourcingHandler fun on(e: StudentEnrolled) { seatsTaken++ }
+        @EventSourcingHandler fun on(e: StudentDropped) { seatsTaken-- }
+
+        companion object {
+            // ← the dynamic boundary lives here
+            // Kotlin has no statics: @JvmStatic is what makes this resolvable by Axon's entity metamodel.
+            @JvmStatic
+            @EventCriteriaBuilder
+            fun resolveCriteria(courseId: CourseId): EventCriteria =
+                EventCriteria.havingTags(Tag.of("courseId", courseId.toString()))
+                    .andBeingOneOfTypes(
+                        CourseCreated::class.java.name,
+                        CourseCapacityChanged::class.java.name,
+                        StudentEnrolled::class.java.name,
+                        StudentDropped::class.java.name,
+                    )
         }
     }
 }
@@ -152,74 +160,68 @@ class EnrollStudentCommandHandler {
 
 Two design notes that fall out of the real API:
 - **`@EventCriteriaBuilder` is the annotation that marks where the boundary is chosen.** That is your "code annotation marks the boundary" requirement — no custom annotation needed.
-- The entity id type (`EnrollmentBoundaryId`) is a *handle for the decision*, not an aggregate identity. Keep it a small record and let the criteria do the scoping.
+- The entity id type (`EnrollmentBoundaryId`) is a *handle for the decision*, not an aggregate identity. Keep it a small immutable data class and let the criteria do the scoping.
 
 ## Installation
 
-```xml
-<properties>
-    <java.version>21</java.version>
-    <axon.version>5.4.1</axon.version>
-    <spring-boot.version>3.5.16</spring-boot.version>
-    <jackson3.version>3.2.4</jackson3.version>
-</properties>
+**Build: Gradle Kotlin DSL, backend in Kotlin (project decision).** The Axon coordinates and version pins below are still the source of truth; only the build file and language change. Pin the wrapper with `gradle wrapper --gradle-version 8.14.3` (Spring Boot 3.5's tested Gradle line) and verify Spring Boot 3.5.16's plugin on Gradle 9 before upgrading.
 
-<dependencyManagement>
-    <dependencies>
-        <!-- FIRST: Jackson 3 must win jackson-annotations over Spring Boot 3.5's Jackson 2 BOM -->
-        <dependency>
-            <groupId>tools.jackson</groupId>
-            <artifactId>jackson-bom</artifactId>
-            <version>${jackson3.version}</version>
-            <type>pom</type>
-            <scope>import</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-dependencies</artifactId>
-            <version>${spring-boot.version}</version>
-            <type>pom</type>
-            <scope>import</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.axonframework</groupId>
-            <artifactId>axon-framework-bom</artifactId>
-            <version>${axon.version}</version>
-            <type>pom</type>
-            <scope>import</scope>
-        </dependency>
-    </dependencies>
-</dependencyManagement>
+```kotlin
+// build.gradle.kts
+plugins {
+    kotlin("jvm") version "2.4.21"
+    kotlin("plugin.spring") version "2.4.21"
+    kotlin("plugin.allopen") version "2.4.21"
+    id("org.springframework.boot") version "3.5.16"
+    id("io.spring.dependency-management") version "1.1.7"
+}
 
-<dependencies>
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-web</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>org.axonframework.extensions.spring</groupId>
-        <artifactId>axon-spring-boot-starter</artifactId>
-    </dependency>
+kotlin { jvmToolchain(21) }
 
-    <!-- NOT axon-server-connector. NOT axoniq-spring-boot-starter. NOT spring-boot-starter-data-jpa. -->
+repositories { mavenCentral() }
 
-    <dependency>
-        <groupId>org.axonframework</groupId>
-        <artifactId>axon-test</artifactId>
-        <scope>test</scope>
-    </dependency>
-    <dependency>
-        <groupId>org.axonframework.extensions.spring</groupId>
-        <artifactId>axon-spring-boot-starter-test</artifactId>
-        <scope>test</scope>
-    </dependency>
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-test</artifactId>
-        <scope>test</scope>
-    </dependency>
-</dependencies>
+dependencyManagement {
+    imports {
+        // FIRST: Jackson 3 must win jackson-annotations over Spring Boot 3.5's Jackson 2 BOM.
+        // This plugin imports BOMs in declaration order and the first match wins — same
+        // semantics as Maven's <dependencyManagement> order.
+        mavenBom("tools.jackson:jackson-bom:3.2.4")
+        mavenBom("org.axonframework:axon-framework-bom:5.4.1")
+        // spring-boot-dependencies is imported automatically by the Spring Boot plugin.
+    }
+}
+
+dependencies {
+    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-security")
+    implementation("org.axonframework.extensions.spring:axon-spring-boot-starter")
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
+
+    // NOT axon-server-connector. NOT axoniq-spring-boot-starter. NOT spring-boot-starter-data-jpa.
+
+    testImplementation("org.axonframework:axon-test")
+    testImplementation("org.axonframework.extensions.spring:axon-spring-boot-starter-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+}
+
+tasks.withType<Test> { useJUnitPlatform() }
 ```
+
+Equivalent guarantees to the Maven setup: the Axon version is declared once in the BOM, Jackson 3 wins over Spring Boot's Jackson 2 constraints, and the three forbidden artifacts are absent from `runtimeClasspath` — assert the latter in the Phase 1 guard test with an `EntityManagerFactory` bean check.
+
+### Kotlin adaptation — what research did NOT verify
+
+The research (and every Axon example it cites) is Java. These are the Kotlin-specific points to settle in Phases 1–2, in order of risk:
+
+| Risk | Why | How to settle |
+|------|-----|---------------|
+| `@EventTag` annotation target | A Kotlin data-class constructor property is not a Java field. `@EventTag` may need `@field:EventTag`, `@param:EventTag`, or `@get:EventTag` — the wrong target is silently ignored and tags never get stored. | The Phase 2 stored-tag assertion test is exactly this check; try `@param:` first, assert the stored tag set, then fall back to `@field:`. |
+| `@EventCriteriaBuilder` statics | Axon expects a static method; Kotlin has no statics. | Use `companion object { @JvmStatic @EventCriteriaBuilder fun criteria(...): EventCriteria }` and verify the entity metamodel picks it up. |
+| Kotlin events + Jackson | Kotlin data classes need the Kotlin Jackson module when the converter uses constructor binding; AF5's default converter is Jackson 3 (`tools.jackson`), while Spring MVC on Boot 3.5 uses Jackson 2. | Add the Kotlin module for the converter actually in use (verify the `tools.jackson.module:jackson-module-kotlin` coordinate against the imported BOM; `com.fasterxml.jackson.module:jackson-module-kotlin` if the HTTP layer needs it) and confirm one round-trip in Phase 1. |
+| Final classes by default | Kotlin classes/methods are final; Spring proxying and Axon's entity enhancement expect open types where they subclass. | `kotlin("plugin.spring")` opens `@Component`/`@Configuration`/`@Transactional`; keep Axon decision entities pure/immutable and add `allOpen` only if the metamodel requires it. |
+| Nullability at boundaries | Axon/Spring APIs are platform types; sloppy `!!` hides real null cases. | Declare event/handler signatures non-null explicitly; treat Axon return values as nullable until checked. |
+
+If a Kotlin/Axon interop wall turns out to be structural (not annotation-target level), the fallback is a thin Java seam for the DCB entity + criteria builder only — but do not pre-emptively mix languages; prove the wall first.
 
 ```bash
 # Frontend (scaffold, then add query lib)
@@ -229,7 +231,7 @@ npm install
 npm install @tanstack/react-query
 
 # Run
-./mvnw spring-boot:run          # backend on :8080
+./gradlew bootRun               # backend on :8080
 npm run dev                     # frontend on :5173, proxying /api -> :8080
 ```
 
@@ -250,7 +252,7 @@ Spring Boot's `EventProcessorProperties` defaults to `Mode.POOLED`. With pooled 
 | OSS starter (`org.axonframework.extensions.spring`) | Commercial `io.axoniq.framework:axoniq-spring-boot-starter` | Only if you add Axon Server, PostgreSQL storage, distributed messaging, or a DLQ. Since Axon 5.1 those live in the commercial BOM and log a license warning in production. Axon's own examples use it because they run against Axon Server in Docker — which this project explicitly rejects. |
 | `InMemoryEventStorageEngine` | `axoniq-postgresql` (`PostgresqlEventStorageEngine`) | Only if persistence across restarts becomes a requirement *and* PostgreSQL is acceptable. It is the one DCB-capable persistent engine, but it is commercial and needs a DB server. |
 | JPA/`spring-boot-starter-data-jpa` for read models | In-memory read model (`ConcurrentHashMap` repository + `@EventHandler` projector) | The in-memory read model is what Axon's own University example does (`InMemoryCourseStatsRepository`). Since events are in-memory too, persistence symmetry is correct — a restart wipes both. Add JPA only if you accept the `EventStorageEngine`-bean workaround. |
-| Maven | Gradle | Nothing about this stack is Gradle-idiomatic. Maven's BOM `import` scope is the path of least surprise. |
+| Gradle | Maven | Author preference (this project uses Gradle). Both work; the only care point is BOM import order, which `dependencyManagement { imports { … } }` preserves. |
 | Spring Boot starter | Plain `EventSourcingConfigurer` (`UniversityAxonApplication` style) | The plain-Java path is closer to the metal and is what the standalone `university-demo` repo does. Use it for a single test-harness module if you want to see the configurer explicitly; not for the app. |
 | React + Vite + TS | Server-rendered (Thymeleaf/htmx) | Would remove an entire process, but the project decision already commits to a React SPA to keep Axon code uncluttered. Not worth relitigating. |
 
@@ -311,6 +313,7 @@ Spring Boot's `EventProcessorProperties` defaults to `Mode.POOLED`. With pooled 
 - `https://repo1.maven.org/maven2/.../axon-spring-boot-starter-5.4.1.pom` and `axon-spring-boot-autoconfigure-5.4.1.pom` — exact transitive set, no Axon Server connector
 - `https://repo1.maven.org/maven2/org/axonframework/axon-parent/5.4.1/axon-parent-5.4.1.pom` — `spring.boot.version=3.5.16`, `jackson.version=3.2.3`
 - `https://registry.npmjs.org/{react,vite,typescript,@tanstack/react-query,react-router-dom}` and `create-vite@9.3.4/template-react-ts/package.json` — frontend versions
+- `https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/maven-metadata.xml` — Kotlin `latest = 2.5.0-Beta2` (pre-release), newest stable `2.4.21`, metadata updated 2026-10-21
 
 ## Gaps / must validate during implementation
 

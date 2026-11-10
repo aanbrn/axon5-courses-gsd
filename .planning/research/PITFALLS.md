@@ -498,7 +498,7 @@ Days lost to APIs that no longer exist or that moved. Concretely observed:
 - AF4 material (`@Aggregate`, `@AggregateIdentifier`, `AggregateLifecycle.apply`, `EventSourcingRepository`, `GenericCommandGateway`, `TrackingEventProcessor`, `IntervalRetryScheduler`) is still the top hit for most queries and does not compile against AF5.
 - AF5 has **two** annotation sets: `@EventSourcedEntity` (configuration-API style) and `@EventSourced` (Spring Boot). Mixing them yields "no handler found"-class failures.
 - Artifact coordinates split: `org.axonframework:*` (framework, Apache-2.0) vs `io.axoniq.framework:*` (Axon Server connector, PostgreSQL engine — with a production licence).
-- Java 21 is a hard baseline.
+- JDK 21 is a hard baseline (Kotlin compiles to it; the language choice does not change the floor).
 - The project is young enough that release notes matter (5.3.2 added tags to `AppendEventsTransactionRejectedException`; minor releases carry real behaviour changes).
 
 **Why it happens:**
