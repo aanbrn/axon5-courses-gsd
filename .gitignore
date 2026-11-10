@@ -25,8 +25,12 @@ npm-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Local tooling
-.opencode/
+# Local tooling (generated). The 70+ gsd-* commands are installer output;
+# only hand-written project commands are tracked — add one unignore line each.
+.opencode/*
+!.opencode/commands/
+.opencode/commands/*
+!.opencode/commands/setup-tooling.md
 
 # Secrets and machine-specific config
 .env
@@ -39,6 +43,15 @@ local.properties
 .axonserver/
 pgdata/
 
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
 # Logs and test reports
 *.log
 *.hprof
+
+# GSD research cache (derived, machine-local)
+.planning/research/.cache/
