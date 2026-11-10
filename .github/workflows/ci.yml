@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - "feature/**"
+      - "gsd/**"
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect Gradle wrapper
+        id: detect
+        run: |
+          if [ -x ./gradlew ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: No wrapper yet
+        if: steps.detect.outputs.present == 'false'
+        run: echo "No ./gradlew in this revision — build skipped until the Gradle scaffolding lands."
+
+      - uses: actions/setup-java@v4
+        if: steps.detect.outputs.present == 'true'
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Build and test
+        if: steps.detect.outputs.present == 'true'
+        run: ./gradlew build --no-daemon
