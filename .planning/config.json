@@ -1,5 +1,12 @@
 {
   "model_profile": "adaptive",
+  "model_profile_overrides": {
+    "opencode": {
+      "opus": "opencode-go/deepseek-v4-pro",
+      "sonnet": "opencode-go/deepseek-v4.1-flash",
+      "haiku": "opencode-go/claude-haiku-5-5"
+    }
+  },
   "commit_docs": true,
   "parallelization": true,
   "search_gitignored": false,
