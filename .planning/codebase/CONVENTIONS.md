@@ -83,7 +83,7 @@ All three must hold:
 - Kotlin: Spotless + ktlint. Normalize with `./gradlew spotlessApply`; CI verifies via `spotlessCheck`.
 - Frontend: Prettier. Normalize with `npm run format` in `frontend/`; CI verifies via `npm run format:check`.
 - `.editorconfig` in the root is the shared baseline; do not override it per editor.
-- Line length is **100** for Kotlin (via `.editorconfig` `max_line_length`) and for Prettier (`printWidth`); Markdown prose is not rewrapped.
+- Line length is **100** for Kotlin (via `.editorconfig` `max_line_length`) and for every Prettier target (`printWidth`), including Markdown prose in `docs/` and `README.md`; `.planning/` is excluded from Prettier.
 - Repo-level files (docs, README, workflows, root JSON): `scripts/format.sh` to write, `scripts/format-check.sh` to verify.
 - `.planning/`, `AGENTS.md` and `*.jsonc` are never Prettier-formatted: they are machine-read or generated.
 - CI never rewrites files — a red formatting check is fixed locally and pushed.
