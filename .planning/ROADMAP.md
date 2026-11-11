@@ -179,7 +179,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Build and infrastructure skeleton | 0/TBD | Not started | - |
+| 1. Build and infrastructure skeleton | 0/6 | Planned | - |
 | 2. Session and message path | 0/TBD | Not started | - |
 | 3. Message and tag contract | 0/TBD | Not started | - |
 | 4. DCB append-condition spike | 0/TBD | Not started | - |
