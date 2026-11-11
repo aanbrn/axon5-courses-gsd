@@ -21,7 +21,7 @@
 | Axon Server connector | `io.axoniq.framework:axon-server-connector` (transitive via the starter) **[pivot]** | Command/query routing + event storage | Multi-process requires it, and `axoniq-spring-boot-starter` already depends on it — declare the starter alone. Local server via Docker; production use is licensed. |
 | Axon Server | **2026.1.7** (Docker image `axoniq/axonserver`) **[pivot]** | Event store, command/query routing, token store | The series is "2026.1"; published tags are patch-level, so pin `2026.1.7`. Axon Server is the path that needs no commercial module beyond the connector — `axoniq-springcloud` + `axoniq-postgresql` form a second, also commercial, topology. Supports DCB. |
 | PostgreSQL | **18** (Docker `postgres:18`; 17 is one major behind) **[pivot]** | Read model owned by `read` | Durable across restarts; one service writes and answers it, so snapshot and live updates share one source. |
-| Gradle multi-module + `java-platform` | **8.14.x** wrapper + **Kotlin DSL** + version catalog | Build | Six modules (see topology). 8.14 is a deliberate pin for Spring Boot 3.5/4 plugin compatibility; Gradle 9.9 is current, so re-check the pin at scaffold time and upgrade deliberately. Versions live in `gradle/libs.versions.toml`; `:platform` re-exports the BOMs. |
+| Gradle multi-module + `java-platform` | **9.7.x** wrapper (9.7.0) + **Kotlin DSL** + version catalog | Build | Six modules (see topology). 9.7 is the highest line fully supported by Kotlin Gradle Plugin 2.4.21 (max 9.7.0); Gradle 9.9 is newer but outside the tested range, and Boot 4.1.2 requires only >= 8.14. Versions live in `gradle/libs.versions.toml`; `:platform` re-exports the BOMs. `./gradlew bootRun --parallel` starts all three services. |
 | React | **19.3.1** | SPA UI | Current `latest` on npm; what `create-vite@9.3.4`'s `template-react-ts` pins. |
 | Vite | **8.3.7** | Dev server + build | Current `latest`; proxy to the gateway removes CORS config. |
 | TypeScript | **7.0.2** | Frontend types | Pinned by the official `create-vite` React-TS template. |
@@ -63,7 +63,7 @@
 
 - **Kotlin:** Spotless 8.11.0 with `ktlint()` for `*.kt` and `*.kts`, plus `trimTrailingWhitespace()` and `endWithNewline()`. `spotlessCheck` is attached to `check`, so `./gradlew build` fails on drift.
 - **Frontend:** Prettier with `format` (write) and `format:check` (verify) npm scripts; `:frontend:check` depends on `format:check`.
-- **One line length: 100 everywhere.** ktlint reads `max_line_length = 100` from the root `.editorconfig` (Spotless picks up the top-level file by default); Prettier reads `.editorconfig` by default; `.prettierrc.json` pins `printWidth: 100` explicitly so both numbers match even if a call site forgets the flag. Markdown is not wrapped (`proseWrap: preserve`) — prose lines are a review concern, not a formatter's.
+- **One line length: 100 everywhere.** ktlint reads `max_line_length = 100` from the root `.editorconfig` (Spotless picks up the top-level file by default); Prettier reads `.editorconfig` by default; `.prettierrc.json` pins `printWidth: 100` explicitly so both numbers match even if a call site forgets the flag. Markdown prose is wrapped at the same 100 (`proseWrap: always`) for repo-level docs; `.planning` is excluded, so GSD's machine-read files are untouched.
 - **Shared baseline:** a root `.editorconfig` (LF, final newline, trimmed whitespace, 4-space Kotlin, 2-space TS/JS/JSON/CSS, `max_line_length = 100`).
 - **Workflow:** `./gradlew spotlessApply` and `npm run format` are the only sanctioned normalizers. CI verifies; it never rewrites.
 - **Repository-level files:** `scripts/format.sh` / `scripts/format-check.sh` run Prettier 3.9.10 over the repository, honouring `.prettierignore`: `.planning/`, `AGENTS.md`, `.agents/`, `.opencode/`, `*.jsonc`, lockfiles, build output and the SPA are excluded — the first two are machine-read, the SPA owns its own config.
@@ -290,7 +290,7 @@ dependencies {
 }
 ```
 
-> **Gradle rule (verified on 8.14.3 and reproduced on 9.9):** a `java-platform` cannot take BOMs inside `constraints { }` — the notation is a dependency, not a constraint, and platforms refuse real dependencies unless `allowDependencies()` is set. Import BOMs with `api(platform(…))` inside `dependencies { }`.
+> **Gradle rule (verified on 8.14.3 and 9.9, pinned to 9.7.1):** a `java-platform` cannot take BOMs inside `constraints { }` — the notation is a dependency, not a constraint, and platforms refuse real dependencies unless `allowDependencies()` is set. Import BOMs with `api(platform(…))` inside `dependencies { }`.
 
 `write/build.gradle.kts` — write side only:
 
