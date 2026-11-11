@@ -19,6 +19,9 @@ dependencies {
     testImplementation("org.awaitility:awaitility")
 }
 
+// Only the executable jar is a build artifact; the plain jar would duplicate it.
+tasks.jar { enabled = false }
+
 tasks.test { useJUnitPlatform { excludeTags("integration") } }
 
 tasks.register<Test>("integrationTest") {

@@ -14,7 +14,6 @@ import java.time.Duration
     webEnvironment = SpringBootTest.WebEnvironment.NONE,
 )
 class AxonServerRegistrationIT {
-
     @Autowired
     lateinit var connectionManager: AxonServerConnectionManager
 
