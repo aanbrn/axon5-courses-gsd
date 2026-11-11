@@ -48,6 +48,7 @@ test-results/
 playwright-report/
 blob-report/
 .playwright/
+.playwright-mcp/
 
 # Logs and test reports
 *.log
