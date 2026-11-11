@@ -88,15 +88,85 @@ Rules:
 - OpenCode reloads configuration on save; a restart is not needed. Use `/reload` only if a server
   looks stale.
 
+The tracked `playwright` entry runs `npx -y @playwright/mcp@0.0.85 --headless`, so an agent session
+can drive the running SPA without a visible browser: navigate to http://localhost:8080/, snapshot
+the accessibility tree and assert test ids with an evaluate call. Its snapshots and console logs
+land in `.playwright-mcp/`, which is gitignored.
+
+## Running the stack locally
+
+Two commands from the repository root, in this order:
+
+```bash
+docker compose up -d --wait   # Axon Server + PostgreSQL
+./gradlew bootRun --parallel  # write, read, api
+```
+
+`docker compose up -d --wait` starts the infrastructure and returns only once both containers are
+healthy:
+
+| Container    | Ports      | Health check                               |
+| ------------ | ---------- | ------------------------------------------ |
+| `axonserver` | 8024, 8124 | `curl http://localhost:8024/actuator/info` |
+| `postgres`   | 5432       | `pg_isready -U enrollment`                 |
+
+8024 is Axon Server's HTTP console and REST API; 8124 is the gRPC port the three services connect
+to. PostgreSQL carries the `enrollment` database and the `enrollment` user, with `enrollment` as the
+password. That credential is a local development convenience, not a secret and not a production
+default — this project has no production deployment.
+
+`./gradlew bootRun --parallel` starts all three services in one Gradle run:
+
+| Module  | Port | Role                                                   |
+| ------- | ---- | ------------------------------------------------------ |
+| `write` | 8081 | command side — the only service that appends events    |
+| `read`  | 8082 | read side — projections and queries over PostgreSQL    |
+| `api`   | 8080 | HTTP gateway, serves the SPA at http://localhost:8080/ |
+
+For frontend-only work, `./gradlew :frontend:dev` runs Vite on 5173 and proxies `/api` to the
+gateway.
+
+`./scripts/smoke-stack.sh` runs the whole loop as one command: it brings Compose up, asserts that
+`write`, `read` and `api` each register with Axon Server, starts the three services, checks their
+health endpoints and the SPA shell, then tears everything down.
+
+Registration is asserted inside the applications, never by scraping `/actuator/health`: this starter
+combination registers no Axon health indicator, so a green health endpoint says nothing about the
+Axon connection. To prove registration against a running stack, run
+
+```bash
+./gradlew integrationTest --tests '*AxonServerRegistrationIT'
+```
+
+### The 12-hour unlicensed window
+
+Axon Server runs unlicensed here. On startup it logs
+`No license detected. Running in unregistered mode.` and `Trial access is limited to 12 hours`, then
+schedules a shutdown twelve hours later — a long demo day dies mid-session even though the
+containers stay up. `docker compose restart axonserver` starts a fresh window; a license from
+[platform.axoniq.io](https://platform.axoniq.io) removes the limit. Nothing in this setup is
+production-ready: Phase 1 proves only that the commercial artifacts resolve and boot without a
+license.
+
 ## CI
 
-`.github/workflows/ci.yml` builds and tests the project once `gradlew` exists. Until then the build
-step is skipped and the job stays green, so the required `build` check is never red for a missing
-wrapper.
+Three checks are required on `main`: `build`, `format` and `title`.
 
-`./scripts/format-check.sh` runs Prettier over docs, the README, workflows and root JSON.
-`.planning/`, `AGENTS.md` and `*.jsonc` are excluded: the planning files are parsed by GSD and
-generated files would drift.
+`.github/workflows/ci.yml` runs the `build` job on Ubuntu 24.04:
 
-`.github/workflows/pr-title.yml` enforces the conventional-commit format on pull request titles,
-because the squash commit in `main` takes the PR title.
+1. checkout, plus JDK 21 (Temurin) and Node 24.20.0 with the Gradle and npm caches;
+2. `docker compose up -d --wait` — Compose rather than `services:`, so the image tags have one
+   source of truth;
+3. `./gradlew build --no-daemon` — builds and unit-tests every module, including the SPA through
+   `:frontend`. It is Docker-free by construction: the `integrationTest` tasks are registered
+   separately and are not part of `check`;
+4. `./gradlew integrationTest --no-daemon` — the `integrationTest` tasks in `write`, `read` and
+   `api`, tagged `integration`, running against the live Axon Server and PostgreSQL started above;
+5. `docker compose logs` when a step fails, and `docker compose down -v --remove-orphans` always.
+
+The `format` job runs the same `./scripts/format-check.sh` used locally — Prettier over docs, the
+README, workflows and root JSON; `.planning/`, `AGENTS.md` and `*.jsonc` are excluded because the
+planning files are parsed by GSD and generated files would drift.
+
+The `title` check lives in `.github/workflows/pr-title.yml` and enforces the conventional-commit
+format on pull request titles, because the squash commit in `main` takes the PR title.
