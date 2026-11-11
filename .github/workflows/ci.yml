@@ -29,31 +29,40 @@ jobs:
 
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       # Pinned to full commit SHAs: a tag can be moved under us.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Detect Gradle wrapper
-        id: detect
-        run: |
-          if [ -x ./gradlew ]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: No wrapper yet
-        if: steps.detect.outputs.present == 'false'
-        run: echo "No ./gradlew in this revision — build skipped until the Gradle scaffolding lands."
-
       - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
-        if: steps.detect.outputs.present == 'true'
         with:
           distribution: temurin
           java-version: '21'
           cache: gradle
 
-      - name: Build and test
-        if: steps.detect.outputs.present == 'true'
+      # The frontend module shells out to npm; cache is keyed on its lock file.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.20.0'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # Compose, not `services:` — one source of truth for the image tags.
+      - name: Start infrastructure
+        run: docker compose up -d --wait
+
+      # Docker-free on purpose: the integration test is a separate task, so a
+      # local `./gradlew build` never needs a running server.
+      - name: Build and unit test
         run: ./gradlew build --no-daemon
+
+      - name: Integration tests (Axon Server + PostgreSQL)
+        run: ./gradlew integrationTest --no-daemon
+
+      - name: Infrastructure logs
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Stop infrastructure
+        if: always()
+        run: docker compose down -v --remove-orphans
