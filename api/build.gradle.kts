@@ -22,6 +22,12 @@ dependencies {
 // Only the executable jar is a build artifact; the plain jar would duplicate it.
 tasks.jar { enabled = false }
 
+// The SPA is an api artifact: the Vite bundle ships inside the executable jar as static/.
+tasks.named<ProcessResources>("processResources") {
+    dependsOn(":frontend:assembleFrontend")
+    from(project(":frontend").layout.projectDirectory.dir("dist")) { into("static") }
+}
+
 tasks.test { useJUnitPlatform { excludeTags("integration") } }
 
 tasks.register<Test>("integrationTest") {
