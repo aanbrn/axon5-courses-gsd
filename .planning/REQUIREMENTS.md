@@ -80,7 +80,7 @@ Each requirement maps to exactly one roadmap phase.
 - [x] **TOPO-01**: Each of the three services is an independent Spring Boot application with its own bootJar
 - [ ] **TOPO-02**: `api` depends only on `domain` and sends commands and queries as messages; it has no compile dependency on `write` or `read`
 - [ ] **TOPO-03**: `read` is the only module with a datasource, JPA, Flyway and an event processor; `write` is the only module with an `EventAppender` and has no datasource; guard tests fail when either ownership moves, and no module other than `read` declares a datasource
-- [ ] **TOPO-04**: `./gradlew build` produces the SPA bundle and all three bootJars in one build graph, with no separate npm step
+- [x] **TOPO-04**: `./gradlew build` produces the SPA bundle and all three bootJars in one build graph, with no separate npm step
 - [ ] **TOPO-05**: Message types — including `WatchCourseViewQuery` — and tag keys are declared only in `domain`, and a test freezes the set
 - [ ] **TOPO-06**: Live updates are whole read-model snapshots emitted by `read`, which also advertises the watch query; `api` never subscribes to events and no domain event reaches the browser
 
@@ -175,7 +175,7 @@ Deferred to a future release. Tracked but not in the current roadmap.
 | TOPO-01 | 1 | Complete |
 | TOPO-02 | 2 | Pending |
 | TOPO-03 | 2 | Pending |
-| TOPO-04 | 1 | Pending |
+| TOPO-04 | 1 | Complete |
 | TOPO-05 | 3 | Pending |
 | TOPO-06 | 10 | Pending |
 | E2E-01 | 1 | Pending |
