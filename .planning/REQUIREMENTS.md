@@ -68,7 +68,7 @@ Each requirement maps to exactly one roadmap phase.
 
 ### Frontend Verification
 
-- [ ] **E2E-01**: The Playwright MCP server is configured in the tracked project config and can drive the running SPA headless
+- [x] **E2E-01**: The Playwright MCP server is configured in the tracked project config and can drive the running SPA headless
 - [ ] **E2E-02**: Playwright end-to-end tests cover login, course creation, enroll, drop and the last-seat race against the full Compose stack, and run in CI
 
 ### Quality
@@ -178,7 +178,7 @@ Deferred to a future release. Tracked but not in the current roadmap.
 | TOPO-04 | 1 | Complete |
 | TOPO-05 | 3 | Pending |
 | TOPO-06 | 10 | Pending |
-| E2E-01 | 1 | Pending |
+| E2E-01 | 1 | Complete |
 | E2E-02 | 8 | Pending |
 | QUAL-01 | 1 | Complete |
 | PLAT-01 | 1 | Complete |

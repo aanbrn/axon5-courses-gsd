@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 1
 current_phase_name: Build and infrastructure skeleton
 status: executing
-stopped_at: Completed 01-04-PLAN.md
-last_updated: "2026-11-11T00:32:50.504Z"
+stopped_at: Completed 01-06-PLAN.md
+last_updated: "2026-11-11T00:36:41.787Z"
 last_activity: 2026-11-11
 last_activity_desc: "Executed 01-02: read and api services added; three independent bootJars and three Axon registrations proven"
-state_head: 2886e9f96a87c40364a21ba26fdb13307da2eb5d
+state_head: cd021657e46e3116b6bc82fbe5cf03a4231e734f
 progress:
   total_phases: 11
   completed_phases: 0
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-10)
 ## Current Position
 
 Phase: 1 of 11 (Build and infrastructure skeleton)
-Plan: 4 of 6 (6 plans in 4 waves)
+Plan: 6 of 6 (6 plans in 4 waves)
 Status: Ready to execute
 Last activity: 2026-11-11 — Executed 01-02: `read` and `api` services added; three independent bootJars and three Axon registrations proven
 
@@ -55,6 +55,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 1 P03 | 20min | 3 tasks | 18 files |
 | Phase 1 P05 | 12min | 2 tasks | 3 files |
 | Phase 1 P04 | 4min | 2 tasks | 2 files |
+| Phase 01 P06 | 9min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -74,8 +75,8 @@ Progress: [░░░░░░░░░░] 0%
 
 ## Session Continuity
 
-Last session: 2026-11-11T00:32:50.482Z
-Stopped at: Completed 01-04-PLAN.md
+Last session: 2026-11-11T00:36:41.765Z
+Stopped at: Completed 01-06-PLAN.md
 Resume file: None
 
 ## Decisions
@@ -89,3 +90,6 @@ Resume file: None
 - [Phase 01-build-and-infrastructure-skeleton]: CI build job runs integrationTest against a Compose-started stack; ./gradlew build stays Docker-free
 - [Phase 1]: Registration is proven inside the app (AxonServerConnectionManager.connections()), never by scraping /actuator/health; the smoke script runs the per-service integration tests with --rerun
 - [Phase 1]: set -m job control plus kill -- "-RUN_PID" replaces setsid (absent on macOS) so bootRun --parallel leaves no orphaned JVMs
+- [Phase 01]: E2E-01 evidence is the recorded Playwright MCP session in the SUMMARY, not a shell test: only the tracked-config half is greppable, and no Phase 1 test drives a browser
+- [Phase 01]: The accessibility snapshot omits data-testid, so the app-shell element is asserted with browser_evaluate rather than the heading alone
+- [Phase 01]: docs/tooling.md documents the build job as it is: setup-node, docker compose up -d --wait, Docker-free ./gradlew build, tagged integrationTest, always-teardown
