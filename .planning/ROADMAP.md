@@ -6,7 +6,7 @@ A course-enrollment app whose real product is a lesson: a command decides using 
 
 ## Phases
 
-- [ ] **Phase 1: Build and infrastructure skeleton** - Six modules, three boot apps, compose stack, formatting, FSD and Playwright MCP gated in CI
+- [x] **Phase 1: Build and infrastructure skeleton** - Six modules, three boot apps, compose stack, formatting, FSD and Playwright MCP gated in CI
 - [ ] **Phase 2: Session and message path** - Seeded login reaches the services and a probe command/query is routed through Axon Server
 - [ ] **Phase 3: Message and tag contract** - Events, commands, queries, identifiers and tag keys are frozen in `domain`
 - [ ] **Phase 4: DCB append-condition spike** - Two concurrent appends prove the boundary, and a post-commit emit reaches a remote subscriber
@@ -179,7 +179,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Build and infrastructure skeleton | 6/6 | In Progress | - |
+| 1. Build and infrastructure skeleton | 6/6 | Complete | 2026-11-11 |
 | 2. Session and message path | 0/TBD | Not started | - |
 | 3. Message and tag contract | 0/TBD | Not started | - |
 | 4. DCB append-condition spike | 0/TBD | Not started | - |

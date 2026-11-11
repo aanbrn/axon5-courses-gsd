@@ -10,10 +10,10 @@ last_activity_desc: "Executed 01-02: read and api services added; three independ
 state_head: cd021657e46e3116b6bc82fbe5cf03a4231e734f
 progress:
   total_phases: 11
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 6
   completed_plans: 6
-  percent: 0
+  percent: 9
 ---
 
 # Project State
@@ -23,13 +23,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-10)
 
 **Core value:** A command decides using exactly the events its invariant requires — proven by a last-seat race where N concurrent enrollments hit the cap and exactly one succeeds.
-**Current focus:** Phase 1 — Build and infrastructure skeleton
+**Current focus:** Phase 2 — Session and message path
 
 ## Current Position
 
-Phase: 1 of 11 (Build and infrastructure skeleton)
+Phase: 1 of 11 (Build and infrastructure skeleton) — COMPLETE
 Plan: 6 of 6 (6 plans in 4 waves)
-Status: Ready to execute
+Status: Complete — verified 7/7
 Last activity: 2026-11-11 — Executed 01-02: `read` and `api` services added; three independent bootJars and three Axon registrations proven
 
 Progress: [░░░░░░░░░░] 0%
