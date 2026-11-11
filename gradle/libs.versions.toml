@@ -5,10 +5,6 @@ springBoot = "4.1.2"
 axon = "5.4.1"
 spotless = "8.11.0"
 ktlint = "1.8.0"
-node = "24.20.0"
-prettier = "3.9.10"
-steiger = "0.10.0"
-steigerPlugin = "0.8.2"
 
 [libraries]
 spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
