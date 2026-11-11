@@ -12,6 +12,7 @@ allprojects {
 
 subprojects {
     plugins.withId("org.jetbrains.kotlin.jvm") {
+        @Suppress("AvoidApplyPluginMethod")  // conditional per-subproject application is the point here
         apply(plugin = "com.diffplug.spotless")
 
         configure<com.diffplug.gradle.spotless.SpotlessExtension> {

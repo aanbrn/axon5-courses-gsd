@@ -13,10 +13,6 @@ frontend/
 build/
 .gradle/
 .kotlin/
-node_modules/
-dist/
 
 # Lockfiles and comment-bearing configs
-**/package-lock.json
 **/*.jsonc
-**/*.lock

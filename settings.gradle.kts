@@ -1,3 +1,5 @@
+@file:Suppress("UnstableApiUsage")  // Gradle still marks dependencyResolutionManagement as incubating
+
 pluginManagement {
     repositories {
         gradlePluginPortal()

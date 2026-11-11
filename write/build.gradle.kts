@@ -4,7 +4,7 @@ plugins {
     alias(libs.plugins.spring.boot)
 }
 
-kotlin { jvmToolchain(21) }
+kotlin { jvmToolchain(libs.versions.java.get().toInt()) }
 
 dependencies {
     implementation(platform(project(":platform")))

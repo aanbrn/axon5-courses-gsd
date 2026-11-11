@@ -1,5 +1,5 @@
 plugins {
-    `base`
+    id("base")
 }
 
 description = "React SPA built with Vite and structured with Feature-Sliced Design"

@@ -6,7 +6,7 @@
 
 > Confidence note: every claim below was checked against a primary source — AxonIQ's docs site, Maven Central metadata/POMs, npm registry, or AxonFramework source.
 >
-> **Architecture pivot (2026-11-10):** the project moved from a single process with an embedded store to three services behind Axon Server, with a PostgreSQL read model. Rows below that depend on that pivot are marked **[pivot]**.
+> **Architecture pivot (2026-11-10):** the project moved from a single process with an embedded store to three services behind Axon Server, with a PostgreSQL read model. Rows below that depend on that pivot are marked .
 
 ## Recommended Stack
 
@@ -14,13 +14,13 @@
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| Kotlin on JDK 21 | **Kotlin 2.4.21** (latest stable; 2.5.0 is Beta as of 2026-10-21), `jvmToolchain(21)` | Language / JVM | **Project decision.** AF5's hard floor is JDK 21. Kotlin data classes replace Java records for immutable messages; annotation targets differ — see "Kotlin adaptation". |
+| Kotlin on JDK 21 | **Kotlin 2.4.21** (latest stable; 2.5.0 is Beta as of 2026-10-21), `jvmToolchain(libs.versions.java.get().toInt())` | Language / JVM | **Project decision.** AF5's hard floor is JDK 21. Kotlin data classes replace Java records for immutable messages; annotation targets differ — see "Kotlin adaptation". |
 | Spring Boot | **4.1.2** | App runtime, DI, web | **Project decision.** Axon supports Boot 3 and 4 (`5.0.3+`); Boot 4 is the current stable line and manages Jackson 3 itself. Axon's own build baseline is still 3.5.16 — fallback documented under Alternatives. |
-| Axoniq Framework BOM | **5.4.1** (`io.axoniq.framework:axoniq-framework-bom`) **[pivot]** | Version alignment for Axon + commercial modules | **Commercial license.** This BOM includes the OSS Axon modules and extensions, so the OSS BOM is not added separately (official docs). Chosen because distributed messaging and Axon Server connectivity are commercial. |
-| Axoniq Spring Boot Starter | **5.4.1** (`io.axoniq.framework:axoniq-spring-boot-starter`) **[pivot]** | Auto-configuration for a distributed Axon app | The OSS starter no longer fits: it carries no Axon Server connector, and all three services need to talk to the server. |
-| Axon Server connector | `io.axoniq.framework:axon-server-connector` (transitive via the starter) **[pivot]** | Command/query routing + event storage | Multi-process requires it, and `axoniq-spring-boot-starter` already depends on it — declare the starter alone. Local server via Docker; production use is licensed. |
-| Axon Server | **2026.1.7** (Docker image `axoniq/axonserver`) **[pivot]** | Event store, command/query routing, token store | The series is "2026.1"; published tags are patch-level, so pin `2026.1.7`. Axon Server is the path that needs no commercial module beyond the connector — `axoniq-springcloud` + `axoniq-postgresql` form a second, also commercial, topology. Supports DCB. |
-| PostgreSQL | **18** (Docker `postgres:18`; 17 is one major behind) **[pivot]** | Read model owned by `read` | Durable across restarts; one service writes and answers it, so snapshot and live updates share one source. |
+| Axoniq Framework BOM | **5.4.1** (`io.axoniq.framework:axoniq-framework-bom`)  | Version alignment for Axon + commercial modules | **Commercial license.** This BOM includes the OSS Axon modules and extensions, so the OSS BOM is not added separately (official docs). Chosen because distributed messaging and Axon Server connectivity are commercial. |
+| Axoniq Spring Boot Starter | **5.4.1** (`io.axoniq.framework:axoniq-spring-boot-starter`)  | Auto-configuration for a distributed Axon app | The OSS starter no longer fits: it carries no Axon Server connector, and all three services need to talk to the server. |
+| Axon Server connector | `io.axoniq.framework:axon-server-connector` (transitive via the starter)  | Command/query routing + event storage | Multi-process requires it, and `axoniq-spring-boot-starter` already depends on it — declare the starter alone. Local server via Docker; production use is licensed. |
+| Axon Server | **2026.1.7** (Docker image `axoniq/axonserver`)  | Event store, command/query routing, token store | The series is "2026.1"; published tags are patch-level, so pin `2026.1.7`. Axon Server is the path that needs no commercial module beyond the connector — `axoniq-springcloud` + `axoniq-postgresql` form a second, also commercial, topology. Supports DCB. |
+| PostgreSQL | **18** (Docker `postgres:18`; 17 is one major behind)  | Read model owned by `read` | Durable across restarts; one service writes and answers it, so snapshot and live updates share one source. |
 | Gradle multi-module + `java-platform` | **9.7.x** wrapper (9.7.0) + **Kotlin DSL** + version catalog | Build | Six modules (see topology). 9.7 is the highest line fully supported by Kotlin Gradle Plugin 2.4.21 (max 9.7.0); Gradle 9.9 is newer but outside the tested range, and Boot 4.1.2 requires only >= 8.14. Versions live in `gradle/libs.versions.toml`; `:platform` re-exports the BOMs. `./gradlew bootRun --parallel` starts all three services. |
 | React | **19.3.1** | SPA UI | Current `latest` on npm; what `create-vite@9.3.4`'s `template-react-ts` pins. |
 | Vite | **8.3.7** | Dev server + build | Current `latest`; proxy to the gateway removes CORS config. |
@@ -32,7 +32,7 @@
 | Spotless | **8.11.0** | Kotlin formatting | `ktlint()` for `*.kt`/`*.kts`, plus whitespace and final-newline rules; `spotlessCheck` runs inside `check`. |
 | Prettier | 3.x | Frontend formatting | `format` / `format:check` npm scripts, wired into `:frontend:check`. |
 
-### Module topology **[pivot]**
+### Module topology 
 
 | Module | Kind | Owns | Depends on |
 |---|---|---|---|
@@ -52,7 +52,7 @@
 - **`api`** — the only HTTP surface the browser sees. It never touches events or SQL directly; it sends commands and queries over Axon Server.
 - **Seeding** lives in `api` because it must dispatch real commands through the gateway — exactly the path a user takes.
 
-### Read model storage **[pivot]**
+### Read model storage 
 
 - PostgreSQL is the read model. One service owns it end to end: writes, migrations and reads.
 - JPA is allowed **only** in `read` (the schema writer). It stays off `write`, where `JpaEventStoreAutoConfiguration` could install an aggregate-based, DCB-incapable store when the connector is absent or disabled.
@@ -176,7 +176,7 @@ Rules:
 - **SSE lives in `shared/api/sse`** as a generic `EventSource` wrapper; `entities/<x>/api` types it with the read-model shape; features and widgets subscribe through the entity's public API.
 - **Enforcement:** `steiger ./src --fail-on-warnings` in CI (`npm run lint:fsd`) plus the `@/` path alias so boundaries are expressible and reviewable. Without `--fail-on-warnings` several FSD diagnostics stay warnings and the build stays green.
 
-### Live updates: SSE over subscription queries **[pivot]**
+### Live updates: SSE over subscription queries 
 
 The emitter is local to the node that advertises the query (`QueryUpdateEmitter` resolves the local `QueryBus`). Therefore the writer announces, and the reader fans out.
 
@@ -250,6 +250,7 @@ Version catalog — `gradle/libs.versions.toml`:
 
 ```toml
 [versions]
+java = "21"
 kotlin = "2.4.21"
 springBoot = "4.1.2"
 axon = "5.4.1"
@@ -301,7 +302,7 @@ plugins {
     alias(libs.plugins.spring.boot)
 }
 
-kotlin { jvmToolchain(21) }
+kotlin { jvmToolchain(libs.versions.java.get().toInt()) }
 
 dependencies {
     implementation(platform(project(":platform")))
@@ -395,7 +396,7 @@ The OSS `axon-kotlin` extension (AF5) exists and is worth evaluating for value-c
 
 | Recommended | Alternative | When to Use Alternative |
 |-------------|-------------|-------------------------|
-| Three services + Axon Server **[pivot]** | Single process, one app | If the goal is DCB only: no Axon Server, no Postgres, no license, no eventual consistency. This was the original plan and remains the lower-risk fallback. |
+| Three services + Axon Server  | Single process, one app | If the goal is DCB only: no Axon Server, no Postgres, no license, no eventual consistency. This was the original plan and remains the lower-risk fallback. |
 | Axon Server 2026.1.7 (Docker) | Embedded `InMemoryEventStorageEngine` | Tests and spikes only. It cannot be shared across processes, so it cannot carry this topology. |
 | Axoniq Spring Boot starter (commercial) | OSS `org.axonframework.extensions.spring:axon-spring-boot-starter` | Only in the single-process fallback; the OSS starter has no Axon Server connector. |
 | PostgreSQL read model | In-memory read models | Only in the single-process fallback, where the read side shares a JVM with everything else. |
