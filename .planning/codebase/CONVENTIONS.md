@@ -26,9 +26,11 @@
 
 ## Testing
 
+- Unit tests live in `src/test/kotlin`; tests that need Axon Server or PostgreSQL live in `src/integrationTest/kotlin`. The Gradle `jvm-test-suite` plugin defines both suites, so the directory decides which task runs a test — never a tag or a hand-registered `Test` task.
+- `./gradlew build` must stay Docker-free: it runs `test` only. Integration tests run through `./gradlew integrationTest` after `docker compose up -d --wait`.
 - Slice tests use `AxonTestFixture.with(application.configurer())` against the production configurer; contention tests never do — the fixture dispatches one action per `when` phase and cannot overlap.
 - One fixture per test, unique ids per test, no `Thread.sleep`.
-- Contention tests are barrier-driven against the live Axon Server, assert on the rejection mechanism, and carry a negative control that is tagged and excluded from the default run.
+- Contention tests are barrier-driven against the live Axon Server, assert on the rejection mechanism, and carry a negative control that lives in `src/integrationTest` and is excluded from the default run by that placement.
 - Test names read as sentences describing the invariant.
 
 ## Git

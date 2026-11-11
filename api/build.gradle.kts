@@ -2,9 +2,12 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.spring)
     alias(libs.plugins.spring.boot)
+    `jvm-test-suite`
 }
 
-kotlin { jvmToolchain(libs.versions.java.get().toInt()) }
+val javaVersion = libs.versions.java.get()
+
+kotlin { jvmToolchain(javaVersion.toInt()) }
 
 dependencies {
     implementation(platform(project(":platform")))
@@ -28,13 +31,32 @@ tasks.named<ProcessResources>("processResources") {
     from(project(":frontend").layout.projectDirectory.dir("dist")) { into("static") }
 }
 
-tasks.test { useJUnitPlatform { excludeTags("integration") } }
+testing {
+    suites {
+        getByName<JvmTestSuite>("test") {
+            useJUnitJupiter()
+        }
+        register<JvmTestSuite>("integrationTest") {
+            useJUnitJupiter()
 
-tasks.register<Test>("integrationTest") {
-    description = "Runs tests tagged 'integration'. Requires docker compose up -d."
-    group = "verification"
-    testClassesDirs = sourceSets["test"].output.classesDirs
-    classpath = sourceSets["test"].runtimeClasspath
-    useJUnitPlatform { includeTags("integration") }
-    shouldRunAfter(tasks.named("test"))
+            dependencies {
+                implementation(platform(project(":platform")))
+                implementation(sourceSets.main.get().output)
+                implementation("org.springframework.boot:spring-boot-starter-test")
+                implementation("org.jetbrains.kotlin:kotlin-test")
+                implementation("org.awaitility:awaitility")
+            }
+
+            targets.all {
+                testTask.configure { shouldRunAfter(tasks.named("test")) }
+            }
+        }
+    }
+}
+
+configurations.named("integrationTestImplementation") {
+    extendsFrom(configurations.named("implementation").get())
+}
+configurations.named("integrationTestRuntimeOnly") {
+    extendsFrom(configurations.named("runtimeOnly").get())
 }

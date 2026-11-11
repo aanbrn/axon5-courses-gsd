@@ -93,6 +93,20 @@ can drive the running SPA without a visible browser: navigate to http://localhos
 the accessibility tree and assert test ids with an evaluate call. Its snapshots and console logs
 land in `.playwright-mcp/`, which is gitignored.
 
+## Running the tests
+
+Each service module uses the Gradle `jvm-test-suite` plugin, so the source directory decides which
+task runs a test:
+
+| Directory                    | Task                        | Needs Docker |
+| ---------------------------- | --------------------------- | ------------ |
+| `src/test/kotlin`            | `./gradlew test`            | no           |
+| `src/integrationTest/kotlin` | `./gradlew integrationTest` | yes          |
+
+`./gradlew build` runs `test` only, which is what keeps a local build Docker-free. The integration
+suites in `write`, `read` and `api` talk to the live Axon Server and PostgreSQL, so start Compose
+first. There are no tag filters: move a test between directories instead of tagging it.
+
 ## Running the stack locally
 
 Two commands from the repository root, in this order:
@@ -158,10 +172,11 @@ Three checks are required on `main`: `build`, `format` and `title`.
 2. `docker compose up -d --wait` — Compose rather than `services:`, so the image tags have one
    source of truth;
 3. `./gradlew build --no-daemon` — builds and unit-tests every module, including the SPA through
-   `:frontend`. It is Docker-free by construction: the `integrationTest` tasks are registered
-   separately and are not part of `check`;
-4. `./gradlew integrationTest --no-daemon` — the `integrationTest` tasks in `write`, `read` and
-   `api`, tagged `integration`, running against the live Axon Server and PostgreSQL started above;
+   `:frontend`. It is Docker-free by construction: unit tests live in `src/test/kotlin`, and the
+   `integrationTest` suites are separate source sets that are not part of `check`;
+4. `./gradlew integrationTest --no-daemon` — the `integrationTest` suites in `write`, `read` and
+   `api`, whose sources live in `src/integrationTest/kotlin`, running against the live Axon Server
+   and PostgreSQL started above;
 5. `docker compose logs` when a step fails, and `docker compose down -v --remove-orphans` always.
 
 The `format` job runs the same `./scripts/format-check.sh` used locally — Prettier over docs, the

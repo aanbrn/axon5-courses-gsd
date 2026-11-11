@@ -1,6 +1,5 @@
 package io.github.aanbrn.showcase.write
 
-import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import java.net.Socket
 import java.net.URI
@@ -10,7 +9,6 @@ import java.net.http.HttpResponse
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-@Tag("integration")
 class InfrastructureReachabilityTest {
     @Test
     fun `Axon Server answers its info endpoint`() {

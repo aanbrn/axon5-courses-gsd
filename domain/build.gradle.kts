@@ -1,6 +1,8 @@
 plugins { alias(libs.plugins.kotlin.jvm) }
 
-kotlin { jvmToolchain(libs.versions.java.get().toInt()) }
+val javaVersion = libs.versions.java.get()
+
+kotlin { jvmToolchain(javaVersion.toInt()) }
 
 dependencies {
     implementation(platform(project(":platform")))
