@@ -73,11 +73,11 @@ Each requirement maps to exactly one roadmap phase.
 
 ### Quality
 
-- [ ] **QUAL-01**: Spotless (`spotlessCheck`), frontend Prettier (`format:check`) and repository Prettier (`scripts/format-check.sh`) run in CI; `spotlessApply` and the matching `format` scripts are the documented normalizers
+- [x] **QUAL-01**: Spotless (`spotlessCheck`), frontend Prettier (`format:check`) and repository Prettier (`scripts/format-check.sh`) run in CI; `spotlessApply` and the matching `format` scripts are the documented normalizers
 
 ### Topology
 
-- [ ] **TOPO-01**: Each of the three services is an independent Spring Boot application with its own bootJar
+- [x] **TOPO-01**: Each of the three services is an independent Spring Boot application with its own bootJar
 - [ ] **TOPO-02**: `api` depends only on `domain` and sends commands and queries as messages; it has no compile dependency on `write` or `read`
 - [ ] **TOPO-03**: `read` is the only module with a datasource, JPA, Flyway and an event processor; `write` is the only module with an `EventAppender` and has no datasource; guard tests fail when either ownership moves, and no module other than `read` declares a datasource
 - [ ] **TOPO-04**: `./gradlew build` produces the SPA bundle and all three bootJars in one build graph, with no separate npm step
@@ -94,7 +94,7 @@ Each requirement maps to exactly one roadmap phase.
 
 ### Platform
 
-- [ ] **PLAT-01**: `docker compose up -d` plus one Gradle run starts Axon Server, PostgreSQL and all three services
+- [x] **PLAT-01**: `docker compose up -d` plus one Gradle run starts Axon Server, PostgreSQL and all three services
 - [ ] **PLAT-02**: Scenario data (open course, full course, full course with waitlist) is created through real commands, and seeding is idempotent across restarts
 - [ ] **PLAT-03**: A full read cycle and the live-update path append no events, and `write` starts without a datasource
 - [ ] **PLAT-04**: The API maps business rejections to 422 with the rule's canonical message, append conflicts to 409 with the conflicting tag set, unknown resources to 404, and unauthenticated/unauthorized to 401/403
@@ -172,7 +172,7 @@ Deferred to a future release. Tracked but not in the current roadmap.
 | IDEM-01 | 5 | Pending |
 | FE-01 | 1 | Pending |
 | FE-02 | 1 | Pending |
-| TOPO-01 | 1 | Pending |
+| TOPO-01 | 1 | Complete |
 | TOPO-02 | 2 | Pending |
 | TOPO-03 | 2 | Pending |
 | TOPO-04 | 1 | Pending |
@@ -180,8 +180,8 @@ Deferred to a future release. Tracked but not in the current roadmap.
 | TOPO-06 | 10 | Pending |
 | E2E-01 | 1 | Pending |
 | E2E-02 | 8 | Pending |
-| QUAL-01 | 1 | Pending |
-| PLAT-01 | 1 | Pending |
+| QUAL-01 | 1 | Complete |
+| PLAT-01 | 1 | Complete |
 | PLAT-02 | 9 | Pending |
 | PLAT-03 | 2 | Pending |
 | PLAT-04 | 6 | Pending |

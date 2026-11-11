@@ -1,0 +1,68 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": null,
+  "phases": [
+    {
+      "number": "1",
+      "name": "Build and infrastructure skeleton",
+      "status": "in_progress"
+    },
+    {
+      "number": "2",
+      "name": "Session and message path",
+      "status": "pending"
+    },
+    {
+      "number": "3",
+      "name": "Message and tag contract",
+      "status": "pending"
+    },
+    {
+      "number": "4",
+      "name": "DCB append-condition spike",
+      "status": "pending"
+    },
+    {
+      "number": "5",
+      "name": "Course creation across services",
+      "status": "pending"
+    },
+    {
+      "number": "6",
+      "name": "Enroll under capacity",
+      "status": "pending"
+    },
+    {
+      "number": "7",
+      "name": "Waitlist and atomic drop/promotion",
+      "status": "pending"
+    },
+    {
+      "number": "8",
+      "name": "Last-seat race proof",
+      "status": "pending"
+    },
+    {
+      "number": "9",
+      "name": "My enrollments and seeded scenarios",
+      "status": "pending"
+    },
+    {
+      "number": "10",
+      "name": "Live updates",
+      "status": "pending"
+    },
+    {
+      "number": "11",
+      "name": "Teaching artifacts",
+      "status": "pending"
+    }
+  ],
+  "next": {
+    "command": "/gsd-progress --next",
+    "label": "Advance to the next step (plan phase 1)",
+    "reason": "Phase 1 of 11 — needs a plan"
+  },
+  "updated_at": "2026-11-11T00:13:07.746Z"
+}
