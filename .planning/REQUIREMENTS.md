@@ -59,8 +59,8 @@ Each requirement maps to exactly one roadmap phase.
 
 ### Frontend
 
-- [ ] **FE-01**: The SPA follows Feature-Sliced Design — layers `app → pages → widgets → features → entities → shared`, one-way imports, and a public `index.ts` per slice
-- [ ] **FE-02**: `npm run lint:fsd` (steiger) passes in CI and fails the build on a layer violation or a deep import
+- [x] **FE-01**: The SPA follows Feature-Sliced Design — layers `app → pages → widgets → features → entities → shared`, one-way imports, and a public `index.ts` per slice
+- [x] **FE-02**: `npm run lint:fsd` (steiger) passes in CI and fails the build on a layer violation or a deep import
 
 ### Identifiers
 
@@ -170,8 +170,8 @@ Deferred to a future release. Tracked but not in the current roadmap.
 | RDMD-02 | 5 | Pending |
 | ID-01 | 3 | Pending |
 | IDEM-01 | 5 | Pending |
-| FE-01 | 1 | Pending |
-| FE-02 | 1 | Pending |
+| FE-01 | 1 | Complete |
+| FE-02 | 1 | Complete |
 | TOPO-01 | 1 | Complete |
 | TOPO-02 | 2 | Pending |
 | TOPO-03 | 2 | Pending |
