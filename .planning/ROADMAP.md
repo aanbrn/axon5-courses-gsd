@@ -33,11 +33,11 @@ A course-enrollment app whose real product is a lesson: a command decides using 
   5. CI fails on unformatted Kotlin (`spotlessCheck`), unformatted TS/TSX (`format:check`) and unformatted docs/workflows (`scripts/format-check.sh`) (QUAL-01).
   6. The SPA is scaffolded by FSD layers with a public `index.ts` per slice, and `npm run lint:fsd` fails on a layer violation or a deep import (FE-01, FE-02).
   7. The tracked `opencode.jsonc` configures the Playwright MCP server, and an agent can open the SPA shell headless through it (E2E-01).
-**Plans**: 2/6 plans executed
+**Plans**: 3/6 plans executed
 
 Plans:
 - [x] 01-01-PLAN.md — Build graph + `write` service registering with Axon Server (tracer)
-- [ ] 01-02-PLAN.md — `read` and `api` services; three independent bootJars
+- [x] 01-02-PLAN.md — `read` and `api` services; three independent bootJars
 - [x] 01-03-PLAN.md — Frontend module, FSD tree, steiger + Prettier gates
 - [ ] 01-04-PLAN.md — SPA embedded in `api` bootJar + `scripts/smoke-stack.sh`
 - [ ] 01-05-PLAN.md — CI `build` job (Node, Compose, integrationTest) + `.gitignore`
