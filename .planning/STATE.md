@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 1
 current_phase_name: Build and infrastructure skeleton
 status: executing
-stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-11-11T00:26:00.000Z"
+stopped_at: Completed 01-05-PLAN.md
+last_updated: "2026-11-11T00:26:58.357Z"
 last_activity: 2026-11-11
 last_activity_desc: "Executed 01-02: read and api services added; three independent bootJars and three Axon registrations proven"
-state_head: f6fcfc6d0151fd7b42783eb537f1ddcfed6c7be6
+state_head: b8cf334f6c6605151a0edd1f38f3f07c16919317
 progress:
   total_phases: 11
   completed_phases: 0
   total_plans: 6
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -28,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-11-10)
 ## Current Position
 
 Phase: 1 of 11 (Build and infrastructure skeleton)
-Plan: 2 of 6 (6 plans in 4 waves)
-Status: Executing
+Plan: 3 of 6 (6 plans in 4 waves)
+Status: Ready to execute
 Last activity: 2026-11-11 — Executed 01-02: `read` and `api` services added; three independent bootJars and three Axon registrations proven
 
 Progress: [░░░░░░░░░░] 0%
@@ -53,6 +53,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 1 P01 | 25min | 4 tasks | 19 files |
 | Phase 1 P02 | 6min | 2 tasks | 8 files |
 | Phase 1 P03 | 20min | 3 tasks | 18 files |
+| Phase 1 P05 | 12min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -72,8 +73,8 @@ Progress: [░░░░░░░░░░] 0%
 
 ## Session Continuity
 
-Last session: 2026-11-11T00:26:00.000Z
-Stopped at: Completed 01-02-PLAN.md
+Last session: 2026-11-11T00:26:58.335Z
+Stopped at: Completed 01-05-PLAN.md
 Resume file: None
 
 ## Decisions
@@ -84,3 +85,4 @@ Resume file: None
 - [Phase 1]: `read` and `api` build files are copies of `write`'s (same plugins, toolchain and test/integrationTest tag split), differing only in name, port, app class and test fixture, so the three services cannot drift
 - [Phase 1]: `api` depends only on `:platform` and `:domain` plus the Axon starter — never on `write` or `read`; the SPA `processResources` wiring is deferred to Plan 01-04
 - [Phase 1]: A green Axon Server healthcheck does not mean the `default` context exists; stale runner volumes produce `AXONIQ-1400`/`AXONIQ-1302`, and `docker compose down -v` is the reset
+- [Phase 01-build-and-infrastructure-skeleton]: CI build job runs integrationTest against a Compose-started stack; ./gradlew build stays Docker-free

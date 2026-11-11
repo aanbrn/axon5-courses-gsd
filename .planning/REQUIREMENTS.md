@@ -98,7 +98,7 @@ Each requirement maps to exactly one roadmap phase.
 - [ ] **PLAT-02**: Scenario data (open course, full course, full course with waitlist) is created through real commands, and seeding is idempotent across restarts
 - [ ] **PLAT-03**: A full read cycle and the live-update path append no events, and `write` starts without a datasource
 - [ ] **PLAT-04**: The API maps business rejections to 422 with the rule's canonical message, append conflicts to 409 with the conflicting tag set, unknown resources to 404, and unauthenticated/unauthorized to 401/403
-- [ ] **PLAT-05**: CI builds the whole project and runs unit and distributed integration tests on every PR to `main`, starting Axon Server and PostgreSQL
+- [x] **PLAT-05**: CI builds the whole project and runs unit and distributed integration tests on every PR to `main`, starting Axon Server and PostgreSQL
 
 ## v2 Requirements
 
@@ -185,7 +185,7 @@ Deferred to a future release. Tracked but not in the current roadmap.
 | PLAT-02 | 9 | Pending |
 | PLAT-03 | 2 | Pending |
 | PLAT-04 | 6 | Pending |
-| PLAT-05 | 1 | Pending |
+| PLAT-05 | 1 | Complete |
 | DOCS-01 | 11 | Pending |
 | DOCS-02 | 6 | Pending |
 | DOCS-03 | 8 | Pending |
