@@ -4,7 +4,7 @@
 | ---------- | -------------------------------------------------------------------- |
 | Type       | Comment on an open maintenance task, not a new issue                 |
 | Target     | [#6054](https://github.com/open-gsd/gsd-core/issues/6054)            |
-| Role       | A ready-made red case for the positive control that task describes   |
+| Role       | Observation: one artifact class the task does not name               |
 | Dependency | `@opengsd/gsd-core`                                                  |
 | Version    | 1.20.1                                                               |
 | Ecosystem  | npm                                                                  |
@@ -18,9 +18,8 @@
 The defect is already reported: #376 names this hook and this literal, and #4859 is the compiled
 `bin/lib` precedent that #6054 absorbs. A new issue would be the fourth entry for one class.
 
-#6054 asks for a positive control — "an artifact carrying an unrewritten token drives the check
-red". The install already contains one, and the install manifest already tracks it. That is the
-whole contribution, and it needs no claim about command registration or about the other runtimes.
+#6054 asks that an artifact-level check run over "any emitted artifact listed in the post-install
+tree manifest, per runtime". The hooks bundle is such an artifact and the task does not name it.
 
 ## What the comment asserts
 
@@ -72,8 +71,8 @@ Drafted with assistance from an AI agent and reviewed before filing.
 | Evidence (comment)       | passed — every numbered claim re-read on 2026-11-12                                                                                                                                            | 2026-11-12 |
 | Independent (comment #1) | HOLD — claimed the hooks bundle was outside the manifest, which `gsd-file-manifest.json` contradicts; implied a registration claim; promised what the checker would do; named the wrong helper | 2026-11-12 |
 | Independent (comment #2) | HOLD — "ready-made fixture" and "unrewritten token" assumed a required conversion the draft cannot prove; the discovery narrative is unverifiable                                              | 2026-11-12 |
-| Independent (comment #3) | pending — must pass on this exact text before posting                                                                                                                                          | —          |
-| Owner                    | pending                                                                                                                                                                                        | —          |
+| Independent (comment #3) | POST — every claim supported, scope bounded, placement accepted, no OpenCode defect claimed                                                                                                    | 2026-11-12 |
+| Owner                    | pending — reads the committed file before anything is posted                                                                                                                                   | —          |
 
 ## History
 
@@ -83,4 +82,5 @@ duplicate of #376. Retargeting as a comment removed the claim that needed that e
 
 The first comment draft was held as well, and for a better reason: it asserted that the hooks bundle
 falls outside the install manifest, which the manifest itself contradicts. The pivot to "reuse the
-artifact as the positive control" is what the evidence actually supports.
+The pivot is what the evidence supports: name the artifact class, and leave whether its tokens are
+wrong for this runtime to the check that will decide it.
