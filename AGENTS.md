@@ -267,9 +267,9 @@ A small course-enrollment application built to explore Axon Framework 5's Dynami
 | Documentation claims | `/gsd-docs-update` — its `gsd-doc-verifier` checks claims against the codebase |
 | Milestone | `/gsd-audit-milestone` — audits completion against the original intent |
 ## Branching
-
-- One branch per phase: `gsd/phase-{phase}-{slug}` (config template), merged into `main` through a pull request.
-- `main` is protected: no direct pushes, no force-push, no deletion, `build`, `format` and `title` checks required, conversation resolution required.
+- One branch per change: `gsd/phase-{phase}-{slug}` for a phase (config template), a conventional name such as `chore/dependabot-title-and-node-types` for tooling work. Every branch reaches `main` through a pull request.
+- `main` is protected by five GitHub rulesets, not by a file in the repository: `main-require-pr-on-merge` (PR required, squash only, no approval needed, conversations resolved), `main-required-checks` (`build`, `format` and `title`, strict — the branch must be up to date with `main`), `main-require-linear-history`, `main-restrict-deletions` and `main-block-force-pushes`.
+- The owner may bypass `main-block-force-pushes` only. The PR and checks rules carry no bypass, so a direct push to `main` is rejected for the owner too; the force-push escape hatch exists to repair history and still has to pass the checks anew.
 - PR titles follow the same conventional-commit format as commits — the squash commit in `main` takes the PR title and body.
 - Only squash merges are allowed; the branch is deleted after merge.
 
