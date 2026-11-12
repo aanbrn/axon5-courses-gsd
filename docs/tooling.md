@@ -338,23 +338,25 @@ Three checks are required on `main`: `build`, `format` and `title`.
 
 `.github/workflows/ci.yml` runs the `build` job on Ubuntu 24.04:
 
-1. checkout, plus JDK 21 (Temurin) and Node 24.20.0 with the Gradle and npm caches;
-2. `./gradlew build --no-daemon` — builds and unit-tests every module, including the SPA through
+1. checkout, JDK 21 (Temurin), Node 24.20.0 with the npm cache, and `gradle/actions/setup-gradle`
+   for the Gradle dependency, wrapper and build caches;
+2. `./gradlew build` — builds and unit-tests every module, including the SPA through
    `:courses-frontend`. It is Docker-free by construction: unit tests live in `src/test/kotlin`, and
    the `integrationTest` suites are separate source sets that are not part of `check`;
-3. `./gradlew integrationTest --no-daemon` — the `integrationTest` suites in `courses-write`,
-   `courses-read` and `courses-api`, whose sources live in `src/integrationTest/kotlin`. Each suite
-   starts its own Axon Server through Testcontainers — plus PostgreSQL in the read-side suite — so
-   the job starts no Compose stack and tears nothing down. Draft pull requests skip this step;
-   marking a draft ready (`ready_for_review`) re-runs CI so the suites execute before merge.
+3. `./gradlew integrationTest` — the `integrationTest` suites in `courses-write`, `courses-read` and
+   `courses-api`, whose sources live in `src/integrationTest/kotlin`. Each suite starts its own Axon
+   Server through Testcontainers — plus PostgreSQL in the read-side suite — so the job starts no
+   Compose stack and tears nothing down. Draft pull requests skip this step; marking a draft ready
+   (`ready_for_review`) re-runs CI so the suites execute before merge.
 
 Images are built locally, and in CI only by the Playwright e2e job (Phase 8), which needs the real
 stack: `./gradlew bootBuildImage` and `./gradlew :courses-frontend:dockerBuildImage`. They are never
 pushed to a registry.
 
-The `format` job runs the same `./scripts/format-check.sh` used locally — Prettier over docs, the
-README, workflows and root JSON; `.planning/`, `AGENTS.md` and `*.jsonc` are excluded because the
-planning files are parsed by GSD and generated files would drift.
+The `format` job sets Node up with the npm cache before running the same `./scripts/format-check.sh`
+used locally — Prettier over docs, the README, workflows and root JSON; `.planning/`, `AGENTS.md`
+and `*.jsonc` are excluded because the planning files are parsed by GSD and generated files would
+drift.
 
 The `title` check lives in `.github/workflows/pr-title.yml` and enforces the conventional-commit
 format on pull request titles, because the squash commit in `main` takes the PR title.
