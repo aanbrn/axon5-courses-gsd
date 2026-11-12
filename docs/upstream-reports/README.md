@@ -51,7 +51,7 @@ Statuses: `not filed`, `filed`, `fixed in <version>`, `closed (wontfix)`.
 
 ## Register
 
-| #    | Date       | Dependency                 | Symptom                                                                                | Status      | File                                        |
-| ---- | ---------- | -------------------------- | -------------------------------------------------------------------------------------- | ----------- | ------------------------------------------- |
-| 0001 | 2026-11-12 | `@opengsd/gsd-core` 1.20.1 | The workflow guard advises; no mechanism requires a change to start from a GSD command | `not filed` | [0001](0001-gsd-workflow-guard-advisory.md) |
-| 0002 | 2026-11-12 | `@opengsd/gsd-core` 1.20.1 | The workflow advisory names `/gsd:fast` and `/gsd:quick`, which OpenCode does not have | `not filed` | [0002](0002-gsd-advisory-command-form.md)   |
+| #    | Date       | Dependency                 | Symptom                                                                                            | Status                                                                                        | File                                        |
+| ---- | ---------- | -------------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| 0001 | 2026-11-12 | `@opengsd/gsd-core` 1.20.1 | `workflows/settings.md` omits a description that `docs/CONFIGURATION.md:854` already gives         | `closed (wontfix)` — premise refuted                                                          | [0001](0001-gsd-workflow-guard-advisory.md) |
+| 0002 | 2026-11-12 | `@opengsd/gsd-core` 1.20.1 | A manifest-tracked hook script contains `/gsd:<cmd>` literals; noted for #6054's artifact coverage | `filed` — [comment](https://github.com/open-gsd/gsd-core/issues/6054#issuecomment-6817493618) | [0002](0002-gsd-advisory-command-form.md)   |
