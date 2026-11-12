@@ -1,4 +1,4 @@
-# 0001 — Enabling hooks.workflow_guard still lets a direct edit through
+# 0001 — hooks.workflow_guard returns a warning, not a block, for a direct edit
 
 |                |                                                                      |
 | -------------- | -------------------------------------------------------------------- |
@@ -111,7 +111,7 @@ on `decision: "block"` or exit code 2 (`:360-366`), and injects `additionalConte
 ## Draft
 
 ```text
-Title: Enabling hooks.workflow_guard still lets a direct edit through
+Title: hooks.workflow_guard returns a warning, not a block, for a direct edit
 
 The generated instruction file tells the agent not to edit files outside a GSD workflow:
 
@@ -120,7 +120,8 @@ The generated instruction file tells the agent not to edit files outside a GSD w
 
 `hooks.workflow_guard` is off by default: "workflow_guard": false at
 bin/shared/config-defaults.manifest.json:82. The key is documented at workflows/settings.md:509
-without a default statement. With it enabled the edit still proceeds; the hook's own header says so:
+without a default statement. With it enabled the hook returns no block decision for a direct edit; its
+own header says so:
 
   // This is a SOFT guard for edits — it advises, not blocks. The edit still proceeds.
   (hooks/gsd-workflow-guard.js:7)
@@ -187,8 +188,9 @@ of them start with gates., and none contains "enforc"
 gates.execute_next_plan, is read as a step condition inside a workflow
 (workflows/execute-plan.md:84) - a transition test, not a tool-layer guard.
 
-Request: either add an opt-in blocking mode, or label hooks.workflow_guard advisory-only in its
-description and in workflows/settings.md, so a project does not enable it expecting a gate.
+This is a feature request, not a bug report: the advisory behaviour is documented in the hook itself.
+Either add an opt-in blocking mode, or label hooks.workflow_guard advisory-only in its description and
+in workflows/settings.md, so a project does not enable it expecting a gate.
 
 Filed from a personal hobby project that uses GSD for a learning exercise; the finding is about the
 option's contract, not a production incident.
