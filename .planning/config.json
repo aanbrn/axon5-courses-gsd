@@ -87,7 +87,8 @@
     ]
   },
   "hooks": {
-    "context_warnings": true
+    "context_warnings": true,
+    "workflow_guard": true
   },
   "project_code": null,
   "phase_naming": "sequential",
