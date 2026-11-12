@@ -35,14 +35,14 @@ path, hostname, username, token, internal URL or unpublished design in the text;
 maintainer's intent; an unchecked duplicate; an approval given to a paraphrase rather than to the
 file.
 
-AI assistance is disclosed in the report with one line, unless the owner records a different
-decision in the register row.
+The report states in one line that it was drafted with AI assistance and reviewed before filing,
+unless the owner records a different decision in that report's header.
 
 ## Files
 
 One file per report, `NNNN-<slug>.md`, numbered in order. Each carries:
 
-- a header table — dependency, version, ecosystem, upstream repository, status, date;
+- a header table — dependency, version, ecosystem, upstream repository, status, disclosure, date;
 - `## Claims and evidence` — one row per claim, with the file and line that support it;
 - `## Draft` — the exact text that will be sent, in a `text` fence so formatting cannot rewrite it;
 - `## Review` — one row per pass, with its verdict and date.
