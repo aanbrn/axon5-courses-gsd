@@ -274,3 +274,27 @@ Captured context:
   after it.
 - Related: `docs/tooling.md` explains why registration is proven by a test rather than by
   `/actuator/health`; this item decides what health may be used for.
+
+### Phase 999.4: Generate upstream evidence tables from commands (BACKLOG)
+
+**Goal**: A claim table in `docs/upstream-reports/` is produced and checked by a script, so a citation
+that does not resolve, or a table row that does not render, fails before review rather than during it.
+**Requirements**: TBD
+**Plans**: 0 plans
+
+Captured context:
+
+- Observed over eight review passes on 0001 and three on 0002: the recurring defect was never the
+  finding, it was the citation. Wrong line, wrong range, an unescaped `\|\|` that broke a Markdown
+  table, a claim tightened in the table while the public fence kept the older sentence.
+- Three of the last five findings were that last class alone — a divergence between what the table says
+  and what the draft publishes.
+- A generator would extract every `file:line` from a report, print the cited line next to the claim,
+  validate that each table row parses, and fail on a citation that no longer resolves. It cannot judge
+  whether the line supports the claim; that stays with the reviewer.
+- Scope: a script behind the existing gate, invoked from the task that writes the draft — not a new
+  GSD command, and not a replacement for the independent review pass.
+- Trigger: the next upstream report, or the third citation defect found in review, whichever comes
+  first. 999.4 exists because the second already happened twice.
+- Related: `docs/upstream-reports/README.md` defines the gate; `.planning/codebase/CONVENTIONS.md`
+  § Upstream reports defines what may be published.
