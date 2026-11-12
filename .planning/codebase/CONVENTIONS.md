@@ -44,6 +44,14 @@ The rules that keep the topology honest:
 - Contention tests are barrier-driven against the live Axon Server and assert on the rejection mechanism. The negative control will live in its own source set (`src/negativeControl/kotlin`, suffix `*NC`) with a `negativeControlTest` task, added to the suite list when the first class lands (Phase 8); it must never run inside `integrationTest`, because a control that deliberately produces two winners would turn CI red on every pull request.
 - Test names read as sentences describing the invariant.
 
+## Changes go through GSD
+
+- Every change to this repository starts from a GSD command: `/gsd-fast` for a trivial one, `/gsd-quick` for a small tracked task, `/gsd-debug` for a defect, `/gsd-discuss-phase`/`/gsd-plan-phase`/`/gsd-execute-phase` for phase work, `/gsd-docs-update`, `/gsd-code-review`, `/gsd-audit-*`, `/gsd-validate-phase`, `/gsd-secure-phase`, `/gsd-capture`, `/gsd-extract-learnings`, `/gsd-ship` and `/gsd-undo` for the rest.
+- Outside a GSD command the agent does not edit, create or delete files, commit, push, open a pull request or merge one. When a change is requested, it names the command that owns it and waits, instead of doing the work directly because that is faster.
+- Reading, searching, running tests and answering questions need no command: investigation is not a change.
+- Operations outside the repository — GitHub settings, the user's global configuration, the OpenCode session — are named as such and are taken only on an explicit request.
+- `/gsd-ship` ships a phase: it requires that phase's verification and its ROADMAP record. A non-phase change made by `/gsd-fast` or `/gsd-quick` therefore lands through the branch-and-PR rules in § Branching — push the branch, open the PR, wait for the three checks, squash-merge — because the branch protection, not a GSD command, is what makes that path honest.
+
 ## Git
 
 - Commit messages: conventional prefixes (`feat`, `fix`, `docs`, `chore`, `test`, `refactor`, `perf`, `ci`, `build`, `style`, `revert`), optional scope (`feat(command): ...`), imperative, English, ≤72 characters on the subject line.
