@@ -50,6 +50,7 @@ The rules that keep the topology honest:
 - Outside a GSD command the agent does not edit, create or delete files, commit, push, open a pull request or merge one. When a change is requested, it names the command that owns it and waits, instead of doing the work directly because that is faster.
 - Reading, searching, running tests and answering questions need no command: investigation is not a change.
 - Operations outside the repository — GitHub settings, the user's global configuration, the OpenCode session — are named as such and are taken only on an explicit request.
+- `/gsd-ship` ships a phase: it requires that phase's verification and its ROADMAP record. A non-phase change made by `/gsd-fast` or `/gsd-quick` therefore lands through the branch-and-PR rules in § Branching — push the branch, open the PR, wait for the three checks, squash-merge — because the branch protection, not a GSD command, is what makes that path honest.
 
 ## Git
 
