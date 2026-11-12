@@ -36,6 +36,9 @@ yarn-error.log*
 !.opencode/plugins/phase-session-title/
 !.opencode/plugins/phase-session-title/**
 .opencode/plugins/phase-session-title/node_modules/
+!.opencode/plugins/commit-guard/
+!.opencode/plugins/commit-guard/**
+.opencode/plugins/commit-guard/node_modules/
 
 # Secrets and machine-specific config
 .env
