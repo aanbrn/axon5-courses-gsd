@@ -1,14 +1,15 @@
 # 0001 — The workflow guard advises; nothing requires a GSD command
 
-|                |                                               |
-| -------------- | --------------------------------------------- |
-| Dependency     | `@opengsd/gsd-core`                           |
-| Version        | 1.20.1                                        |
-| Ecosystem      | npm                                           |
-| Upstream       | https://github.com/open-gsd/gsd-core          |
-| Status         | `not filed`                                   |
-| Found          | 2026-11-12                                    |
-| Local decision | `.planning/codebase/CONVENTIONS.md` § Tooling |
+|                |                                                                      |
+| -------------- | -------------------------------------------------------------------- |
+| Dependency     | `@opengsd/gsd-core`                                                  |
+| Version        | 1.20.1                                                               |
+| Ecosystem      | npm                                                                  |
+| Upstream       | https://github.com/open-gsd/gsd-core                                 |
+| Status         | `not filed`                                                          |
+| Disclosure     | Drafted with assistance from an AI agent and reviewed before filing. |
+| Found          | 2026-11-12                                                           |
+| Local decision | `.planning/codebase/CONVENTIONS.md` § Upstream reports               |
 
 ## Summary
 
@@ -92,7 +93,7 @@ A blocking mode is not obviously out of reach: whether a GSD command is active i
 workflow. An opt-in mode that refuses a write outside `.planning/` when no command is active would make
 the generated rule checkable instead of aspirational.
 
-Reported with assistance from an AI agent.
+Drafted with assistance from an AI agent and reviewed before filing.
 ```
 
 ## Review

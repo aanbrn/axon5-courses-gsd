@@ -1,13 +1,14 @@
 # 0002 — The workflow advisory names a command form the runtime does not have
 
-|            |                                      |
-| ---------- | ------------------------------------ |
-| Dependency | `@opengsd/gsd-core`                  |
-| Version    | 1.20.1                               |
-| Ecosystem  | npm                                  |
-| Upstream   | https://github.com/open-gsd/gsd-core |
-| Status     | `not filed`                          |
-| Found      | 2026-11-12                           |
+|            |                                                                      |
+| ---------- | -------------------------------------------------------------------- |
+| Dependency | `@opengsd/gsd-core`                                                  |
+| Version    | 1.20.1                                                               |
+| Ecosystem  | npm                                                                  |
+| Upstream   | https://github.com/open-gsd/gsd-core                                 |
+| Status     | `not filed`                                                          |
+| Disclosure | Drafted with assistance from an AI agent and reviewed before filing. |
+| Found      | 2026-11-12                                                           |
 
 ## Summary
 
@@ -62,7 +63,7 @@ Suggested fix: call formatGsdSlashFor(cwd, 'fast') and formatGsdSlashFor(cwd, 'q
 already-rendered names from the same source the instruction file uses, so the advisory cannot drift
 from the installed command layout.
 
-Reported with assistance from an AI agent.
+Drafted with assistance from an AI agent and reviewed before filing.
 ```
 
 ## Review
