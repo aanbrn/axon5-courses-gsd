@@ -9,16 +9,34 @@
 # /actuator/health: this starter combination registers no Axon health indicator, so a green health
 # endpoint says nothing about the Axon connection. The integration suite proves the same thing
 # self-contained, with Testcontainers; this script proves the Compose stack specifically.
+#
+# Teardown keeps the Compose volumes, so a local PostgreSQL or event store survives the run.
+# Pass --wipe-volumes for a clean slate.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+wipe_volumes=0
+for arg in "$@"; do
+  case "$arg" in
+    --wipe-volumes) wipe_volumes=1 ;;
+    *)
+      printf 'unknown argument: %s (expected --wipe-volumes)\n' "$arg" >&2
+      exit 2
+      ;;
+  esac
+done
+
 cleanup() {
   local status
   status=$?
   trap - EXIT INT TERM
-  docker compose down -v --remove-orphans >/dev/null 2>&1 || true
+  if [ "$wipe_volumes" = 1 ]; then
+    docker compose down -v --remove-orphans >/dev/null 2>&1 || true
+  else
+    docker compose down --remove-orphans >/dev/null 2>&1 || true
+  fi
   exit "$status"
 }
 

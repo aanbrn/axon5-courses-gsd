@@ -377,7 +377,8 @@ docker compose up -d axonserver postgres
 
 `./scripts/smoke-stack.sh` runs the whole loop as one command: it builds all four images, starts the
 stack, checks the Axon registration for each service, asserts the SPA shell and the rendered
-`config.js` on :3000, then tears everything down.
+`config.js` on :3000, then tears everything down. Volumes are kept, so a local PostgreSQL or event
+store survives the run; `--wipe-volumes` starts from a clean slate.
 
 Compose tags are guarded by `checkComposeImages`, which runs as part of `check`: project images must
 use `${PROJECT_VERSION:-<project.version>}`; infrastructure tags may be pinned or use
