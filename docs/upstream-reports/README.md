@@ -51,7 +51,7 @@ Statuses: `not filed`, `filed`, `fixed in <version>`, `closed (wontfix)`.
 
 ## Register
 
-| #    | Date       | Dependency                 | Symptom                                                                                | Status      | File                                        |
-| ---- | ---------- | -------------------------- | -------------------------------------------------------------------------------------- | ----------- | ------------------------------------------- |
-| 0001 | 2026-11-12 | `@opengsd/gsd-core` 1.20.1 | The workflow guard advises; no mechanism requires a change to start from a GSD command | `not filed` | [0001](0001-gsd-workflow-guard-advisory.md) |
-| 0002 | 2026-11-12 | `@opengsd/gsd-core` 1.20.1 | The workflow advisory names `/gsd:fast` and `/gsd:quick`, which OpenCode does not have | `not filed` | [0002](0002-gsd-advisory-command-form.md)   |
+| #    | Date       | Dependency                 | Symptom                                                                                                                                                                   | Status      | File                                        |
+| ---- | ---------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------- |
+| 0001 | 2026-11-12 | `@opengsd/gsd-core` 1.20.1 | The workflow guard advises; no configuration key enforces that a change starts from a GSD command                                                                         | `not filed` | [0001](0001-gsd-workflow-guard-advisory.md) |
+| 0002 | 2026-11-12 | `@opengsd/gsd-core` 1.20.1 | The advisory hardcodes the legacy `/gsd:<cmd>` form while `bin/lib/runtime-slash.cjs` declares the hyphen form canonical; #376 closed that class only for Claude installs | `not filed` | [0002](0002-gsd-advisory-command-form.md)   |
