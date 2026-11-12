@@ -18,5 +18,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "axon5-dcb-showcase"
-include("platform", "domain", "write", "read", "api", "frontend")
+include("courses-platform", "courses-domain", "courses-write", "courses-read", "courses-api", "courses-frontend", "courses-test-support")
+
+includeBuild("build-logic")
