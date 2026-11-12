@@ -1,0 +1,102 @@
+# Dependency updates.
+#
+# Three ecosystems are covered: GitHub Actions, the Gradle version catalog and the frontend's npm
+# packages. Pins that no ecosystem can see — the Gradle wrapper, `axonserver`, `postgres` and the
+# Paketo buildpack versions in `gradle/libs.versions.toml` — are updated by hand; see
+# `docs/tooling.md` and `docs/adr/0009-dependency-update-tracking.md`.
+#
+# Every entry uses the `build` prefix so the generated PR title passes the `title` check. A group
+# keeps the weekly review to one PR per ecosystem for patch and minor updates; major upgrades of the
+# stack are deliberate migrations and are ignored here, not queued as PRs.
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - '*'
+    commit-message:
+      # The `title` check requires a conventional-commit PR title.
+      prefix: build
+      include: scope
+
+  # `build-logic` imports the same catalog, so one entry covers the modules and the build sources.
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      gradle-minor-patch:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Kotlin, Spring Boot and Axon move together: a major of one is a migration, not a PR.
+      - dependency-name: 'org.jetbrains.kotlin*'
+        update-types:
+          - version-update:semver-major
+      - dependency-name: 'org.springframework.boot*'
+        update-types:
+          - version-update:semver-major
+      - dependency-name: 'io.axoniq.framework*'
+        update-types:
+          - version-update:semver-major
+    commit-message:
+      prefix: build
+      include: scope
+
+  - package-ecosystem: npm
+    directory: /courses-frontend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # steiger and its FSD plugin share one spec version, so they must move in the same PR.
+      # Listed first: a group matches in file order, and this pair must not fall into the group below.
+      fsd-linters:
+        patterns:
+          - steiger
+          - '@feature-sliced/*'
+      npm-minor-patch:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # React, Vite and TypeScript are coupled through the Vite plugin and the type packages.
+      - dependency-name: react
+        update-types:
+          - version-update:semver-major
+      - dependency-name: react-dom
+        update-types:
+          - version-update:semver-major
+      - dependency-name: '@types/react'
+        update-types:
+          - version-update:semver-major
+      - dependency-name: '@types/react-dom'
+        update-types:
+          - version-update:semver-major
+      - dependency-name: vite
+        update-types:
+          - version-update:semver-major
+      - dependency-name: '@vitejs/plugin-react'
+        update-types:
+          - version-update:semver-major
+      - dependency-name: typescript
+        update-types:
+          - version-update:semver-major
+    commit-message:
+      prefix: build
+      include: scope

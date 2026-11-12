@@ -1,6 +1,6 @@
 # Pitfalls Research
 
-**Domain:** Axon Framework 5 Dynamic Consistency Boundaries (DCB) — course-enrollment showcase across three services
+**Domain:** Axon Framework 5 Dynamic Consistency Boundaries (DCB) — course-enrollment demo across three services
 **Researched:** 2026-11-10 (re-based after the distributed pivot and three independent reviews)
 
 This file is specific to this project, not generic web advice. Each entry states the failure, how to notice it early, how to prevent it, and which phase owns it.
@@ -62,23 +62,23 @@ This file is specific to this project, not generic web advice. Each entry states
 
 ## Distributed topology
 
-### D1: a datasource in `write`
+### D1: a datasource in `courses-write`
 
 **Failure:** without an Axon Server connector, `spring-boot-starter-data-jpa` plus a `DataSource` lets `JpaEventStoreAutoConfiguration` install an aggregate-based store that cannot do DCB. With the connector present Axon Server storage wins, but a service that never needs a datasource should not carry the risk.
 **Warning signs:** append conditions never conflict; entity tables appear in the database; the race becomes a no-op.
-**Prevention:** no datasource dependency in `write`; a guard test asserting no `EntityManagerFactory` bean.
+**Prevention:** no datasource dependency in `courses-write`; a guard test asserting no `EntityManagerFactory` bean.
 **Phase:** 2.
 
 ### D2: the read side writes
 
-**Failure:** a write-capable datasource outside `read`, or an `EventAppender` anywhere on the read side, reopens the door to two owners of one model.
-**Warning signs:** schema changes outside Flyway; events appended by a service that is not `write`; a second datasource.
-**Prevention:** guard tests: no datasource outside `read`, no `EventAppender` outside `write`, no DDL outside Flyway.
+**Failure:** a write-capable datasource outside `courses-read`, or an `EventAppender` anywhere on the read side, reopens the door to two owners of one model.
+**Warning signs:** schema changes outside Flyway; events appended by a service that is not `courses-write`; a second datasource.
+**Prevention:** guard tests: no datasource outside `courses-read`, no `EventAppender` outside `courses-write`, no DDL outside Flyway.
 **Phase:** 2, 5.
 
 ### D3: schema drift inside the read model
 
-**Failure:** `read` owns Flyway; any DDL tooling outside it can alter columns, and the models diverge until a read fails in traffic.
+**Failure:** `courses-read` owns Flyway; any DDL tooling outside it can alter columns, and the models diverge until a read fails in traffic.
 **Warning signs:** columns no migration created; a clean database behaves differently from a warm one.
 **Prevention:** the read path uses Spring Data JDBC only; Flyway is the sole DDL source; a startup smoke check runs every read query with `LIMIT 0` and fails fast naming the missing column.
 **Phase:** 5.
@@ -92,7 +92,7 @@ This file is specific to this project, not generic web advice. Each entry states
 
 ### D5: projection starts at the wrong place
 
-**Failure:** a fresh `read` replays from the beginning and duplicates writes, or resumes from a stale token and never sees new events.
+**Failure:** a fresh `courses-read` replays from the beginning and duplicates writes, or resumes from a stale token and never sees new events.
 **Warning signs:** duplicated rows after restart; a catalog that stops updating.
 **Prevention:** rely on the Axon Server token store; make seeding idempotent (PLAT-02); verify catch-up in Phase 5 with a restart.
 **Phase:** 2, 5.
@@ -119,21 +119,21 @@ This file is specific to this project, not generic web advice. Each entry states
 
 **Failure:** the fixture dispatches one action per `when` phase, so a "race test" written with it never overlaps and always passes.
 **Warning signs:** the race test has `maxInFlight == 1`; it passes even with a deliberately broken boundary.
-**Prevention:** slice tests use the fixture; contention tests use a barrier-driven harness against the live Axon Server (RACE-01), with the tagged negative control from RACE-04.
+**Prevention:** slice tests use the fixture; contention tests use a barrier-driven harness against the live Axon Server (RACE-01), with the source-set-isolated negative control from RACE-04.
 **Phase:** 8.
 
 ### T2: a negative control that ships as a failing test
 
 **Failure:** RACE-04 as a permanently failing test breaks CI and gets skipped.
 **Warning signs:** a `@Disabled` test nobody reads; PLAT-05 green while the control does not run.
-**Prevention:** tag the harness, exclude it from the default run, execute it explicitly, quote its output in the README.
+**Prevention:** put the harness in its own source set (`src/negativeControl/kotlin`, suffix `*NC`) with its own `negativeControlTest` task, never in `integrationTest`; execute it explicitly in a `workflow_dispatch` CI job and quote its output in the README (ADR-0003: no tag filtering).
 **Phase:** 8.
 
 ### T3: integration tests need the world
 
 **Failure:** race and guard tests need Axon Server and PostgreSQL; discovering this in Phase 8 turns the harness into a project of its own.
 **Warning signs:** "run manually" tests; sleeps standing in for readiness; flaky CI.
-**Prevention:** decide compose services vs Testcontainers in Phase 2, wire one integration test through CI then, gate on health checks.
+**Prevention:** already decided — Testcontainers, one container per class on random ports (ADR-0003); wire one integration test through CI in Phase 2 and gate on container readiness, never on a pre-started Compose stack.
 **Phase:** 2, extended in 8.
 
 ---
@@ -169,7 +169,7 @@ This file is specific to this project, not generic web advice. Each entry states
 
 **Failure:** the client fetches a snapshot, then subscribes; an update lands between the two and is lost until the next change.
 **Warning signs:** a seat count that is stale until something else happens; a test that only passes when the update is delayed.
-**Prevention:** one `subscriptionQuery` call: its first item is the snapshot, later items are updates. Both are produced by `read`, so there is no second source. "GET then open stream" stays forbidden.
+**Prevention:** one `subscriptionQuery` call: its first item is the snapshot, later items are updates. Both are produced by `courses-read`, so there is no second source. "GET then open stream" stays forbidden.
 **Phase:** 10.
 
 ### L3: reconnect loses the final state
@@ -181,9 +181,9 @@ This file is specific to this project, not generic web advice. Each entry states
 
 ### L4: leaked emitters and dead clients
 
-**Failure:** `SseEmitter` instances are never completed; a closed tab keeps a subscription and a sink forever.
-**Warning signs:** growing emitter count; memory climbing in a long demo; updates to nobody.
-**Prevention:** `onCompletion`/`onTimeout`/`onError` all complete and unsubscribe; heartbeat detects half-open connections; bounded per-client buffers.
+**Failure:** the subscription behind a `Flux<ServerSentEvent<…>>` is never cancelled, so a closed tab keeps a subscription and its sink forever.
+**Warning signs:** growing subscription count; memory climbing in a long demo; updates to nobody.
+**Prevention:** cancel the underlying subscription in `doFinally`; a heartbeat sink detects half-open connections; bounded per-client buffers. Do not introduce an `SseEmitter` — STACK forbids manual emitter bridging.
 **Phase:** 10.
 
 ### L5: slow client backpressure
@@ -233,8 +233,8 @@ This file is specific to this project, not generic web advice. Each entry states
 
 **Failure:** the suite runs against a stubbed API because the real stack is slow to start. It then proves nothing about Axon Server, PostgreSQL, or the projection lag.
 **Warning signs:** MSW/mock imports inside `e2e/`; green tests while the app is broken.
-**Prevention:** the E2E profile always talks to the real gateway; the stack is started by Compose in CI and by a documented script locally.
-**Phase:** 5, complete in 8.
+**Prevention:** the E2E profile always talks to the real gateway; the e2e CI job builds the four images and starts Compose, and the local run uses the same Compose path.
+**Phase:** 8.
 
 ### E2: flaky waits
 
@@ -247,8 +247,8 @@ This file is specific to this project, not generic web advice. Each entry states
 
 **Failure:** every test enrolls the same seeded student into the same seeded course; order dependence and seat exhaustion.
 **Warning signs:** tests pass alone and fail together.
-**Prevention:** each test creates its own course with a UUIDv7 id and its own student; demo seeding disabled under the E2E profile.
-**Phase:** 5.
+**Prevention:** each test creates its own course with a UUIDv7 id and acts as one of the fixed seeded students; the E2E profile disables only the three demo courses, never the accounts.
+**Phase:** 8.
 
 ### E4: the MCP is mistaken for CI
 
@@ -261,7 +261,7 @@ This file is specific to this project, not generic web advice. Each entry states
 
 **Failure:** a service that does not own the data calls `emit(...)` for a query it does not answer. `QueryUpdateEmitter` resolves the *local* query bus, so the update reaches only subscriptions this node holds — usually none. The stream silently never updates.
 **Warning signs:** SSE delivers the snapshot and then nothing; `emitAndCount` returns an empty result; cross-node tests pass only with one service in the stack.
-**Prevention:** the node advertising the query must also own the data it emits. Here `read` writes the row and emits it, so there is no cross-service emit at all.
+**Prevention:** the node advertising the query must also own the data it emits. Here `courses-read` writes the row and emits it, so there is no cross-service emit at all.
 **Phase:** 4, used in 10.
 
 ### L7: announcing before the commit

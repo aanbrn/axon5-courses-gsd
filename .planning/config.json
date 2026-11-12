@@ -1,5 +1,5 @@
 {
-  "model_profile": "adaptive",
+  "model_profile": "balanced",
   "model_profile_overrides": {
     "opencode": {
       "opus": "opencode-go/deepseek-v4-pro",
@@ -55,7 +55,9 @@
     "post_planning_gaps": true,
     "security_enforcement": true,
     "security_asvs_level": 1,
-    "security_block_on": "high"
+    "security_block_on": "high",
+    "plan_review_convergence": true,
+    "use_worktrees": true
   },
   "ship": {
     "pr_body_sections": [
@@ -95,7 +97,28 @@
     "source_grounding": true,
     "source_grounding_authority": "grep"
   },
-  "resolve_model_ids": "omit",
-  "mode": "yolo",
-  "granularity": "fine"
+  "resolve_model_ids": true,
+  "mode": "interactive",
+  "granularity": "fine",
+  "features": {
+    "global_learnings": true
+  },
+  "review": {
+    "default_reviewers": [
+      "codex",
+      "opencode"
+    ],
+    "models": {
+      "codex": "gpt-6.1-sol",
+      "opencode": "opencode-go/glm-5.3"
+    },
+    "effort": {
+      "codex": "high",
+      "opencode": "high"
+    }
+  },
+  "model_overrides": {
+    "gsd-code-reviewer": "openai/gpt-6.1-sol",
+    "gsd-plan-checker": "openai/gpt-6.1-sol"
+  }
 }

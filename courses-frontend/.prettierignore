@@ -1,0 +1,6 @@
+# Generated or machine-read content in the SPA
+build/
+node_modules/
+playwright-report/
+test-results/
+package-lock.json

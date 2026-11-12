@@ -1,0 +1,106 @@
+services:
+  axonserver:
+    image: axoniq/axonserver:${AXONSERVER_VERSION:-2026.1.7}
+    ports:
+      - '8024:8024'
+      - '8124:8124'
+    environment:
+      axoniq_axonserver_hostname: localhost
+      axoniq_axonserver_standalone: 'true'
+    volumes:
+      - axonserver-data:/axonserver/data
+      - axonserver-events:/axonserver/events
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fsS http://localhost:8024/actuator/info >/dev/null || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+
+  postgres:
+    image: postgres:${POSTGRES_VERSION:-18.6}
+    environment:
+      POSTGRES_DB: courses
+      POSTGRES_USER: courses
+      POSTGRES_PASSWORD: courses
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U courses -d courses']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Images come from `./gradlew bootBuildImage` (Paketo, no Dockerfile). Only the gateway and the
+  # frontend are exposed; write and read stay on the Compose network.
+  write:
+    image: aanbrn/axon5-courses-write:${PROJECT_VERSION:-0.1.0-SNAPSHOT}
+    environment:
+      THC_PATH: /actuator/health
+    depends_on:
+      axonserver:
+        condition: service_healthy
+    healthcheck:
+      # Paketo health-checker binary; the tiny JVM run image has no shell or curl.
+      test: ['CMD', '/workspace/health-check']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+
+  read:
+    image: aanbrn/axon5-courses-read:${PROJECT_VERSION:-0.1.0-SNAPSHOT}
+    environment:
+      THC_PATH: /actuator/health
+    depends_on:
+      axonserver:
+        condition: service_healthy
+    healthcheck:
+      # Paketo health-checker binary; the tiny JVM run image has no shell or curl.
+      test: ['CMD', '/workspace/health-check']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+
+  api:
+    image: aanbrn/axon5-courses-api:${PROJECT_VERSION:-0.1.0-SNAPSHOT}
+    environment:
+      THC_PATH: /actuator/health
+      COURSES_CORS_ALLOWED_ORIGINS: http://localhost:${FRONTEND_PORT:-3000}
+    ports:
+      - '${API_PORT:-8080}:8080'
+    depends_on:
+      axonserver:
+        condition: service_healthy
+    healthcheck:
+      # Paketo health-checker binary; the tiny JVM run image has no shell or curl.
+      test: ['CMD', '/workspace/health-check']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+
+  frontend:
+    image: aanbrn/axon5-courses-frontend:${PROJECT_VERSION:-0.1.0-SNAPSHOT}
+    environment:
+      # Browser-reachable gateway URL; rendered into config.js at container start.
+      COURSES_API_BASE_URL: http://localhost:${API_PORT:-8080}
+    ports:
+      - '${FRONTEND_PORT:-3000}:8080'
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      # The Paketo nginx run image is minimal: no curl or wget, but bash can open /dev/tcp.
+      test: ['CMD-SHELL', 'bash -c "exec 3<>/dev/tcp/127.0.0.1/8080" || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  axonserver-data:
+  axonserver-events:
+  pgdata:

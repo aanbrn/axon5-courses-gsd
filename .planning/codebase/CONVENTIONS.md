@@ -17,59 +17,58 @@
 
 ## Event sourcing
 
-- Events are the only shared *state* contract; commands and queries are shared message types in `domain`, and no service depends on another service's implementation.
+- Events are the only shared *state* contract; commands and queries are shared message types in `courses-domain`, and no service depends on another service's implementation.
 - Tag keys are constants in one shared tag-keys object used by both `@EventTag` and `@EventCriteriaBuilder`.
 - Never read a read model inside a command handler — the decision sources events.
 - Live updates are whole read-model snapshots over SSE; only the service advertising the watch query emits, and the gateway never forwards domain events.
 - The read service emits from `@TransactionalEventListener(AFTER_COMMIT)`, never directly inside an `@EventHandler`; a rolled-back write must not reach subscribers.
-- `read` owns both halves in one process: JPA + Flyway for the write path, Spring Data JDBC into immutable rows for the read path. Do not introduce a second read process, and keep the two persistence styles in separate packages.
+- `courses-read` owns both halves in one process: JPA + Flyway for the write path, Spring Data JDBC into immutable rows for the read path. Do not introduce a second read process, and keep the two persistence styles in separate packages.
+
+The rules that keep the topology honest:
+
+- **`courses-write` has no datasource and no JPA.** One classpath mistake installs an aggregate-based event store and silently voids DCB. A guard test (TOPO-03, Phase 2) asserts no `EntityManagerFactory` and a present connector.
+- **`courses-read` never appends.** It consumes events and answers queries; only `courses-write` calls `EventAppender`.
+- **Flyway migrations and the event processor live in `courses-read` only.** A guard test (TOPO-03, Phase 2) fails when another module gains either.
+- **The gateway never touches SQL or the event store.** It only sends messages.
+- **`courses-domain` has no Spring dependency.** It is the compile-time contract; a `@Component` there would let services depend on each other's implementations.
+- **Never put a routing key on `EnrollStudent`.** Command sequencing defaults to `RoutingKeySequencingPolicy`; a shared routing key serializes the last-seat race away and the demo proves nothing.
 
 ## Testing
 
+- Test classes carry their suite suffix: `*Tests` in `src/test/kotlin` and `*IT` in `src/integrationTest/kotlin`. `*CT` (`src/componentTest/kotlin`), `*E2E` (`src/e2eTest/kotlin`) and `*NC` (`src/negativeControl/kotlin`) are reserved for suites that do not exist yet; create the suite when the first class lands. Each suite runs only matching classes, and `checkTestNaming` (part of `check`) fails on a mismatch. Browser E2E is Playwright under `courses-frontend/e2e/`, outside Gradle's suites.
+- Shared test infrastructure lives in the `courses-test-support` module and is consumed with `implementation(project(":courses-test-support"))` in the integration suite: the Axon Server registration base, the Testcontainers image lookup and the Docker image properties. The module is on test classpaths only; never put it on a production classpath.
+- Unit tests live in `src/test/kotlin`; tests that need Axon Server or PostgreSQL live in `src/integrationTest/kotlin`. The Gradle `jvm-test-suite` plugin defines both suites, so the directory decides which task runs a test — never a tag or a hand-registered `Test` task.
+- `./gradlew build` must stay Docker-free: it runs the unit tests and the lint/format gates, but never `integrationTest`. Integration tests run through `./gradlew integrationTest` and own their infrastructure through Testcontainers — one container per test class, random host ports, removed after the run. Never require a pre-started Compose stack or a fixed port, and never let a test depend on state left by an earlier run.
 - Slice tests use `AxonTestFixture.with(application.configurer())` against the production configurer; contention tests never do — the fixture dispatches one action per `when` phase and cannot overlap.
 - One fixture per test, unique ids per test, no `Thread.sleep`.
-- Contention tests are barrier-driven against the live Axon Server, assert on the rejection mechanism, and carry a negative control that is tagged and excluded from the default run.
+- Contention tests are barrier-driven against the live Axon Server and assert on the rejection mechanism. The negative control will live in its own source set (`src/negativeControl/kotlin`, suffix `*NC`) with a `negativeControlTest` task, added to the suite list when the first class lands (Phase 8); it must never run inside `integrationTest`, because a control that deliberately produces two winners would turn CI red on every pull request.
 - Test names read as sentences describing the invariant.
 
 ## Git
 
 - Commit messages: conventional prefixes (`feat`, `fix`, `docs`, `chore`, `test`, `refactor`, `perf`, `ci`, `build`, `style`, `revert`), optional scope (`feat(command): ...`), imperative, English, ≤72 characters on the subject line.
 - The PR title becomes the squash commit in `main`, so it must follow the same format; CI enforces it (`pr-title` workflow).
+- Pull requests use `.github/pull_request_template.md`: summary, change type, decisions and trade-offs, deliberate exclusions, the local checks and a test plan.
 - One logical change per commit; planning artifacts commit alongside the work they describe.
 
-## Review loop (planning artifacts)
+## Review
 
-### When it runs
+Review runs on GSD's rails, not on a bespoke loop:
 
-- Any substantial change to `PROJECT.md`, `REQUIREMENTS.md`, `ROADMAP.md`, `research/*`, or this file.
-- The loop completes before a human is asked to read the artifact.
+| Artifact | Command |
+|----------|---------|
+| Phase plan (`PLAN.md`) | `/gsd-review <phase>` — cross-AI peer review through `codex` and `claude`, written to `REVIEWS.md`, fed back with `--reviews` |
+| Plan convergence | `/gsd-plan-review-convergence <phase>` — plan → review → replan until no HIGH concerns remain, three cycles by default; enabled through `workflow.plan_review_convergence` |
+| Phase code | `/gsd-code-review <phase>` — findings land in `REVIEW.md`, `--fix` applies them |
+| Documentation claims | `/gsd-docs-update` — its `gsd-doc-verifier` checks claims against the codebase |
+| Milestone | `/gsd-audit-milestone` — audits completion against the original intent |
 
-### Rounds
+There is no review gate on ordinary edits: run the command that matches the artifact, and do not
+dispatch hand-rolled reviewers or keep a parallel round ledger. `.planning/PLANNING-REVIEW.md` holds
+the findings of two manual cycles run before this rule existed; it is history, not a procedure.
 
-- **Round 1:** three reviewers in parallel, read-only — consistency, requirements/roadmap quality, technical fact-check.
-- **Round 2+:** one consistency reviewer plus only the specialist whose domain still has open findings.
-- Later rounds review the diff since the previous round and its cross-file consequences; only round 1 re-reads the whole corpus.
-- Findings are classified `blocker`, `major`, `minor`.
-
-### Exit criteria
-
-All three must hold:
-
-- zero open `blocker` and `major`;
-- the round's finding count is not greater than the previous round's;
-- no finding closed in an earlier round is reopened.
-
-### Convergence control
-
-- **Hard cap: 3 rounds.** A round 3 with open blockers or majors freezes the documents and escalates to the human with the open list; a fourth round needs an explicit human decision.
-- **Oscillation stop:** a reopened finding, or two findings prescribing opposite fixes, ends the loop and becomes a decision recorded in `PROJECT.md` Key Decisions.
-- **Diminishing-returns stop:** a round producing only minor findings ends the loop; minors are recorded, not fixed by default.
-- **Reviewer bar:** reviewers report only defects that would change implementation or mislead a reader; style preferences are not findings.
-
-### Recording
-
-- Every round appends to `.planning/PLANNING-REVIEW.md`: round number, reviewers, counts by severity, status per finding.
-- Acceptance marks the artifact reviewed; a later change touching more than one file or any constraint starts a new round 1.
+A reviewer bar still applies: report only defects that would change implementation or mislead a
+reader; style preferences are not findings.
 
 ## Branching
 
@@ -81,9 +80,9 @@ All three must hold:
 ## Formatting
 
 - Kotlin: Spotless + ktlint. Normalize with `./gradlew spotlessApply`; CI verifies via `spotlessCheck`.
-- Frontend: Prettier. Normalize with `npm run format` in `frontend/`; CI verifies via `npm run format:check`.
+- Frontend: Prettier. Normalize with `npm run format` in `courses-frontend/`; CI verifies via `npm run format:check`.
 - `.editorconfig` in the root is the shared baseline; do not override it per editor.
-- Line length is **100** for Kotlin (via `.editorconfig` `max_line_length`) and for Prettier (`printWidth`); Markdown prose is not rewrapped.
+- Line length is **100** for Kotlin (via `.editorconfig` `max_line_length`) and for every Prettier target (`printWidth`), including Markdown prose in `docs/` and `README.md`; `.planning/` is excluded from Prettier.
 - Repo-level files (docs, README, workflows, root JSON): `scripts/format.sh` to write, `scripts/format-check.sh` to verify.
 - `.planning/`, `AGENTS.md` and `*.jsonc` are never Prettier-formatted: they are machine-read or generated.
 - CI never rewrites files — a red formatting check is fixed locally and pushed.
@@ -108,7 +107,7 @@ All three must hold:
 
 ## End-to-end tests
 
-- Playwright lives in `frontend/e2e/`, outside `src`, so FSD layer rules do not apply to it.
+- Playwright lives in `courses-frontend/e2e/`, outside `src`, so FSD layer rules do not apply to it.
 - Tests run against the real Compose stack; never mock the backend — the distributed path is the subject.
 - Select by `data-testid`; never by text or DOM structure.
 - No `waitForTimeout`; wait for the observable value (Playwright retries assertions).
@@ -120,16 +119,36 @@ All three must hold:
 - UUIDv7 everywhere (`uuid-creator` server-side, `uuid` npm `v7()` in the SPA). UUIDv4 is rejected: no chronological order, worse index locality.
 - Wrap ids in `@JvmInline value class` (`CourseId`, `StudentId`); never pass raw `UUID` through domain code.
 - The canonical UUID string is the only string form — it is what `@EventTag` stores and what URLs carry.
-- Tests use fixed id constants, never generated ones.
+- Unit and slice tests use fixed id constants. Integration, contention and E2E tests generate UUIDv7 ids, because each run needs its own course without colliding with a previous one.
 
 ## Tags
 
 - Tag keys are domain-neutral and type-implied: `courseId`, `studentId`. Do not repeat the type in the value.
 - `either(courseId, studentId)` is the sanctioned widening for a rule that genuinely spans two subjects (v2: per-student seat limit).
 
+## Build
+
+- Shared build configuration lives in the `build-logic` included build as three convention plugins: `kotlin-conventions` (Kotlin JVM, JDK 21 toolchain, Spotless + ktlint, the `:courses-platform` BOM), `spring-boot-conventions` (Kotlin Spring, Spring Boot, `jvm-test-suite`, service dependencies, the common `withType<JvmTestSuite>` block) and `frontend-conventions` (the `stageImageFiles` step and the `dockerBuildImage` `PackBuildImageTask`). `courses-domain` applies the first, the three services the second, `courses-frontend` the third; `courses-test-support` is a plain Kotlin library.
+- A module declares its own project dependencies, `integrationTest` suite and suite-specific test libraries. A convention carries only what every consumer needs.
+- `build-logic` imports the root `gradle/libs.versions.toml` and uses its generated `LibrariesForLibs` accessors. Never add a second catalog or inline versions in build logic.
+- `build-logic` is formatted by Spotless; the root `check` depends on its `spotlessCheck`, so CI covers the build sources as well as the modules.
+- `bootBuildInfo` excludes the timestamp: `META-INF/build-info.properties` carries version, group, artifact and name only, so rebuilding an image does not change that layer. The SPA mirrors it with `/build-info.json`, generated into `build/dist` without a timestamp.
+- `gradle.properties` enables the build cache, parallel execution and the configuration cache. Tasks must capture configuration-time values (paths, versions, names) instead of touching `project` in a `doLast` action.
+- The project `version` lives in `gradle.properties` and is overridden with `-Pversion=...`; `group` stays in the root `build.gradle.kts`.
+- `actionlint` lints `.github/workflows/*.yml` from `check`. It is a required local tool (`brew install actionlint`) and the only one whose absence fails with a named, explicit error; CI installs a pinned, checksum-verified release before the build. A missing Node or npm fails the same build through the failing `npm ci`, not through a message that names the tool.
+- Dependabot watches three ecosystems weekly — `github-actions`, `gradle` (the catalog, which `build-logic` shares) and `npm` in `courses-frontend` — grouping updates into one PR per ecosystem with a `build(deps)` title so the `title` check passes. Gradle and npm group minor and patch only (`fsd-linters` moves `steiger` with its plugin whatever the size); actions group every size. Kotlin, Spring Boot, Axon, React, Vite and TypeScript majors are ignored: they are migrations, not PRs.
+- The Gradle wrapper, `axonserver`, `postgres` and the Paketo pins are invisible to Dependabot and are bumped by hand, each with a guard: `checkComposeImages` compares the catalog with `compose.yaml`, and a wrong buildpack pin fails the image build. `.github/workflows/buildpack-updates.yml` reports the Paketo pins weekly as one issue; the bump stays manual because only an image build proves a new buildpack, and a bad release is held back in the catalog with `# hold-back: <version>`, which the workflow skips. See `docs/adr/0009-dependency-update-tracking.md`.
+- OS patches come from the Paketo run image, not from a buildpack version, so images are rebuilt before a demo and at least monthly (`./scripts/smoke-stack.sh`). CI builds them only for the Playwright e2e job and never pushes them to a registry, so nothing scans them yet — backlog item 999.2.
+- Docker image versions used by tests live in the catalog (`[versions] axonserver`, `postgres`) and reach the suites as system properties.
+- Vulnerability scanning is GitHub-native and lives on the repository, not in a file: Dependabot alerts and security updates are on, secret scanning and push protection are on, and there is no Snyk, `npm audit` gate or CodeQL. The `ignore` list in `dependabot.yml` suppresses version updates only — a security update still opens a PR, even for an ignored major. See `docs/adr/0010-github-native-vulnerability-scanning.md`.
+
 ## Tooling
 
-- After cloning, run `/setup-tooling` in OpenCode (or `./scripts/setup-tooling.sh` without an agent) — it installs the pinned GSD Core (`1.20.1`, OpenCode, project scope) or verifies an existing install.
+- After cloning, run `/setup-tooling` in OpenCode (or `./scripts/setup-tooling.sh` without an agent) — it installs the pinned GSD Core (`1.20.1`, OpenCode, project scope) or verifies an existing install, then reports the build prerequisites. `./scripts/setup-tooling.sh --check` diagnoses without installing and exits non-zero on a missing tool. `/setup-tooling --mcp` additionally runs the `connect-mcp-servers` skill.
+- Slash commands run only when the user types their name; an agent cannot invoke one. A phrase triggers a skill (matched by description), then the script or the command's file — never the command itself. Never claim a command was invoked when the work came from the script.
+- When a request matches a slash command in `.opencode/commands/`, do not carry out the command's procedure: name the command with its flags and let the user run it. This applies to the commands that own a contract — `setup-tooling` (`--check`, `--force`, `--mcp`) and the `gsd-*` workflows, which orchestrate their own subagents. Proceed only when the user asks the agent to do it instead.
+- A skill is the opposite case: it is meant to fire on intent, so a matching phrase loads it without redirection.
+- The build prerequisites are JDK, Node with npm, `actionlint`, Docker, Compose v2 and `pack`; `actionlint` is the only one whose absence fails `./gradlew build`, because `lintWorkflows` is part of `check`. The table and install hints live in `docs/tooling.md`.
 - `.opencode/` is generated and gitignored. Only hand-written project commands under `.opencode/commands/` are tracked, each with an explicit unignore line in `.gitignore`; never hand-edit the generated `opencode.json`.
-- Project MCP servers belong in the tracked root `opencode.jsonc` under `mcp.servers`; secrets use `{env:NAME}`.
+- Project MCP servers belong in the tracked root `opencode.jsonc` under `mcp.servers`; secrets use `{env:NAME}`. Auth- or IDE-bound servers (GitHub via `gh mcp`, IntelliJ) belong in the user's global config instead — the `connect-mcp-servers` skill detects, installs and wires them, handing back only the steps a human must do.
 - `docs/tooling.md` is the human-facing version of these rules.

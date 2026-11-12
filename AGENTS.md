@@ -2,19 +2,19 @@
 
 ## Project
 
-**Axon 5 DCB Showcase**
+**Axon 5 DCB Courses**
 
-A small course-enrollment application built to explore Axon Framework 5's Dynamic Consistency Boundaries (DCB). Students enroll in courses with limited seats, drop out, and sit on a waitlist — while every decision reads only the events it actually needs instead of loading a whole aggregate. It is deliberately split into three services behind Axon Server — `write`, `read`, `api` — with a PostgreSQL read model, so the boundary also has to survive a real process boundary. It exists as a personal learning sandbox: the app is the vehicle, the boundary design is the lesson.
+A small course-enrollment application built to explore Axon Framework 5's Dynamic Consistency Boundaries (DCB). Students enroll in courses with limited seats, drop out, and sit on a waitlist — while every decision reads only the events it actually needs instead of loading a whole aggregate. It is deliberately split into three services behind Axon Server — `courses-write`, `courses-read`, `courses-api` — with a PostgreSQL read model, so the boundary also has to survive a real process boundary. It exists as a personal learning sandbox: the app is the vehicle, the boundary design is the lesson.
 
-**Core Value:** A command decides using exactly the events its invariant requires — proven by a last-seat race where two concurrent enrollments hit the cap and exactly one succeeds.
+**Core Value:** A command decides using exactly the events its invariant requires — proven by a last-seat race where N concurrent enrollments hit the cap and exactly one succeeds.
 
 ### Constraints
 
-- **Topology**: three Spring Boot services — `write`, `read`, `api` — plus a `domain` contract library, exchanging commands, events and queries through Axon Server. `read` consumes events, owns the PostgreSQL read model and answers queries.
-- **Tech stack**: multi-module Gradle (Kotlin DSL, version catalog) with a `platform` module re-exporting the BOMs; Kotlin on JVM 21, Spring Boot 4.1.2, Axon 5.4.1; React SPA as the `frontend` Gradle module.
-- **Infrastructure**: Docker Compose runs Axon Server and PostgreSQL. One command brings the infrastructure up; one Gradle run starts all three services.
+- **Topology**: three Spring Boot services — `courses-write`, `courses-read`, `courses-api` — plus a `courses-domain` contract library, exchanging commands, events and queries through Axon Server. `courses-read` consumes events, owns the PostgreSQL read model and answers queries.
+- **Tech stack**: multi-module Gradle (Kotlin DSL, version catalog) with a `courses-platform` module re-exporting the BOMs; Kotlin on JVM 21, Spring Boot 4.1.2, Axon 5.4.1; React SPA as the `courses-frontend` Gradle module, shipped as a standalone nginx image.
+- **Infrastructure**: Docker Compose runs the whole stack — Axon Server, PostgreSQL, the three services and the frontend. One command brings it up; every deployable is a Paketo image.
 - **Licensing**: the Axon Server connector and the Axon Spring Boot starter are commercial `io.axoniq.framework` modules; local development must run under their evaluation behavior, and any production use is explicitly out of scope.
-- **Consistency**: events are the only cross-service *state* contract; commands and queries are shared message types in `domain`. Each service owns its own models, and read models are eventually consistent.
+- **Consistency**: events are the only cross-service *state* contract; commands and queries are shared message types in `courses-domain`. Each service owns its own models, and read models are eventually consistent.
 <!-- GSD:project-end -->
 
 <!-- GSD:stack-start source:research/STACK.md -->
@@ -27,50 +27,50 @@ A small course-enrollment application built to explore Axon Framework 5's Dynami
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| Kotlin on JDK 21 | **Kotlin 2.4.21** (latest stable; 2.5.0 is Beta as of 2026-10-21), `jvmToolchain(21)` | Language / JVM | **Project decision.** AF5's hard floor is JDK 21. Kotlin data classes replace Java records for immutable messages; annotation targets differ — see "Kotlin adaptation". |
+| Kotlin on JDK 21 | **Kotlin 2.4.21** (latest stable; 2.5.0 is Beta as of 2026-10-21), `jvmToolchain(libs.versions.java.get().toInt())` | Language / JVM | **Project decision.** AF5's hard floor is JDK 21. Kotlin data classes replace Java records for immutable messages; annotation targets differ — see "Kotlin adaptation". |
 | Spring Boot | **4.1.2** | App runtime, DI, web | **Project decision.** Axon supports Boot 3 and 4 (`5.0.3+`); Boot 4 is the current stable line and manages Jackson 3 itself. Axon's own build baseline is still 3.5.16 — fallback documented under Alternatives. |
-| Axoniq Framework BOM | **5.4.1** (`io.axoniq.framework:axoniq-framework-bom`) **[pivot]** | Version alignment for Axon + commercial modules | **Commercial license.** This BOM includes the OSS Axon modules and extensions, so the OSS BOM is not added separately (official docs). Chosen because distributed messaging and Axon Server connectivity are commercial. |
-| Axoniq Spring Boot Starter | **5.4.1** (`io.axoniq.framework:axoniq-spring-boot-starter`) **[pivot]** | Auto-configuration for a distributed Axon app | The OSS starter no longer fits: it carries no Axon Server connector, and all three services need to talk to the server. |
-| Axon Server connector | `io.axoniq.framework:axon-server-connector` (transitive via the starter) **[pivot]** | Command/query routing + event storage | Multi-process requires it, and `axoniq-spring-boot-starter` already depends on it — declare the starter alone. Local server via Docker; production use is licensed. |
-| Axon Server | **2026.1.7** (Docker image `axoniq/axonserver`) **[pivot]** | Event store, command/query routing, token store | The series is "2026.1"; published tags are patch-level, so pin `2026.1.7`. Axon Server is the path that needs no commercial module beyond the connector — `axoniq-springcloud` + `axoniq-postgresql` form a second, also commercial, topology. Supports DCB. |
-| PostgreSQL | **18** (Docker `postgres:18`; 17 is one major behind) **[pivot]** | Read model owned by `read` | Durable across restarts; one service writes and answers it, so snapshot and live updates share one source. |
-| Gradle multi-module + `java-platform` | **8.14.x** wrapper + **Kotlin DSL** + version catalog | Build | Six modules (see topology). 8.14 is a deliberate pin for Spring Boot 3.5/4 plugin compatibility; Gradle 9.9 is current, so re-check the pin at scaffold time and upgrade deliberately. Versions live in `gradle/libs.versions.toml`; `:platform` re-exports the BOMs. |
+| Axoniq Framework BOM | **5.4.1** (`io.axoniq.framework:axoniq-framework-bom`)  | Version alignment for Axon + commercial modules | **Commercial license.** This BOM includes the OSS Axon modules and extensions, so the OSS BOM is not added separately (official docs). Chosen because distributed messaging and Axon Server connectivity are commercial. |
+| Axoniq Spring Boot Starter | **5.4.1** (`io.axoniq.framework:axoniq-spring-boot-starter`)  | Auto-configuration for a distributed Axon app | The OSS starter no longer fits: it carries no Axon Server connector, and all three services need to talk to the server. |
+| Axon Server connector | `io.axoniq.framework:axon-server-connector` (transitive via the starter)  | Command/query routing + event storage | Multi-process requires it, and `axoniq-spring-boot-starter` already depends on it — declare the starter alone. Local server via Docker; production use is licensed. |
+| Axon Server | **2026.1.7** (Docker image `axoniq/axonserver`)  | Event store, command/query routing, token store | The series is "2026.1"; published tags are patch-level, so pin `2026.1.7`. Axon Server is the path that needs no commercial module beyond the connector — `axoniq-springcloud` + `axoniq-postgresql` form a second, also commercial, topology. Supports DCB. |
+| PostgreSQL | **18** (Docker `postgres:18`; 17 is one major behind)  | Read model owned by `courses-read` | Durable across restarts; one service writes and answers it, so snapshot and live updates share one source. |
+| Gradle multi-module + `java-platform` | **9.9.1** wrapper + **Kotlin DSL** + version catalog | Build | Six modules — three Boot apps, the platform, the domain contract and the SPA — plus `courses-test-support` (see topology). The wrapper pins the `-all` distribution and its SHA-256; Kotlin Gradle Plugin 2.4.21 configures and builds on 9.9.1 (verified), and Boot 4.1.2 requires only >= 8.14. Versions live in `gradle/libs.versions.toml`; `:courses-platform` re-exports the BOMs. `./gradlew bootRun --parallel` starts all three services. |
 | React | **19.3.1** | SPA UI | Current `latest` on npm; what `create-vite@9.3.4`'s `template-react-ts` pins. |
-| Vite | **8.3.7** | Dev server + build | Current `latest`; proxy to the gateway removes CORS config. |
+| Vite | **8.3.7** | Dev server + build | Current `latest`; its dev proxy covers the local loop, and the deployed SPA uses the gateway's CORS allow-list (ADR-0007). |
 | TypeScript | **7.0.2** | Frontend types | Pinned by the official `create-vite` React-TS template. |
-| Feature-Sliced Design | FSD v2 layer model | Frontend architecture | Layers `app → pages → widgets → features → entities → shared`, slices with a public `index.ts`, one-directional imports. Five screens still benefit: each slice owns its model and UI, and the SSE transport stays in `shared/api` instead of leaking into pages. |
+| Feature-Sliced Design | FSD v2 layer model | Frontend architecture | Layers `app → pages → widgets → features → entities → shared`, slices with a public `index.ts`, one-directional imports. Four screens still benefit: each slice owns its model and UI, and the SSE transport stays in `shared/api` instead of leaking into pages. |
 | `steiger` | **0.10.x** | FSD structure linter | Machine-checks layer direction, public API and slice boundaries; runs in CI so the architecture does not decay into folders. |
 | `@tanstack/react-query` | 5.x | Server state and cache | Initial snapshots and command-triggered invalidation; SSE updates write into the same cache entries. |
 | `react-router-dom` | 7.x | Routing | One route per page slice. |
 | Spotless | **8.11.0** | Kotlin formatting | `ktlint()` for `*.kt`/`*.kts`, plus whitespace and final-newline rules; `spotlessCheck` runs inside `check`. |
-| Prettier | 3.x | Frontend formatting | `format` / `format:check` npm scripts, wired into `:frontend:check`. |
+| Prettier | 3.x | Frontend formatting | `format` / `format:check` npm scripts, wired into `:courses-frontend:check`. |
 
-### Module topology **[pivot]**
+### Module topology 
 
 | Module | Kind | Owns | Depends on |
 |---|---|---|---|
-| `platform` | `java-platform` | Re-exports the Boot and Axoniq BOMs via `api(platform(...))` with `allowDependencies()`; Boot manages Jackson | — |
-| `domain` | library | Events, commands, queries, ids, tag keys, `DomainRejection` — the contract every service compiles against | Axon annotations only |
-| `write` | Spring Boot app | `@CommandHandler` slices, decision state, `@EventCriteriaBuilder`, seeding is **not** here | `domain`, Axoniq starter (brings the connector) |
-| `read` | Spring Boot app | `@EventHandler` projections writing **PostgreSQL** (JPA + Flyway), `@QueryHandler`s reading it through Spring Data JDBC, and `QueryUpdateEmitter` for live updates | `domain`, JPA, Spring Data JDBC, PostgreSQL, Axoniq starter |
-| `api` | Spring Boot app | REST + security, `CommandGateway`/`QueryGateway`, seeding, race endpoint, serves the SPA | `domain`, Axoniq starter, web, security |
-| `frontend` | node-gradle module | React/Vite build to `dist/` | — |
-
+| `courses-platform` | `java-platform` | Re-exports the Boot and Axoniq BOMs via `api(platform(...))` with `allowDependencies()`; Boot manages Jackson | — |
+| `courses-domain` | library | Events, commands, queries, ids, tag keys, `DomainRejection` — the contract every service compiles against | Axon annotations only |
+| `courses-write` | Spring Boot app | `@CommandHandler` slices, decision state, `@EventCriteriaBuilder`, seeding is **not** here | `courses-domain`, Axoniq starter (brings the connector) |
+| `courses-read` | Spring Boot app | `@EventHandler` projections writing **PostgreSQL** (JPA + Flyway), `@QueryHandler`s reading it through Spring Data JDBC, and `QueryUpdateEmitter` for live updates | `courses-domain`, JPA, Spring Data JDBC, PostgreSQL, Axoniq starter |
+| `courses-api` | Spring Boot app | REST + security, `CommandGateway`/`QueryGateway`, seeding | `courses-domain`, Axoniq starter, web, security |
+| `courses-frontend` | Gradle module + container | React/Vite build to `build/dist`, shipped as a standalone nginx image built with Paketo buildpacks | — |
+| `courses-test-support` | library | Shared test infrastructure: the Axon Server registration base and the Testcontainers image lookup | Axoniq starter, Spring test, Awaitility, Testcontainers |
 ### Service responsibilities
-- **`write`** — the only service that appends events. No datasource, no JPA, no read models. It does not need the read schema at all.
-- **`read`** — one service, both halves of the read side. A tracking processor consumes events and writes denormalized tables in PostgreSQL (JPA + Flyway); the same service answers `@QueryHandler`s through Spring Data JDBC into immutable rows and emits subscription-query updates. Because the writer and the emitter live in one process, snapshot and updates cannot come from different sources.
-- **`api`** — the only HTTP surface the browser sees. It never touches events or SQL directly; it sends commands and queries over Axon Server.
-- **Seeding** lives in `api` because it must dispatch real commands through the gateway — exactly the path a user takes.
-### Read model storage **[pivot]**
+- **`courses-write`** — the only service that appends events. No datasource, no JPA, no read models. It does not need the read schema at all.
+- **`courses-read`** — one service, both halves of the read side. A tracking processor consumes events and writes denormalized tables in PostgreSQL (JPA + Flyway); the same service answers `@QueryHandler`s through Spring Data JDBC into immutable rows and emits subscription-query updates. Because the writer and the emitter live in one process, snapshot and updates cannot come from different sources.
+- **`courses-api`** — the only HTTP surface the browser sees. It never touches events or SQL directly; it sends commands and queries over Axon Server.
+- **Seeding** lives in `courses-api` because it must dispatch real commands through the gateway — exactly the path a user takes.
+### Read model storage 
 - PostgreSQL is the read model. One service owns it end to end: writes, migrations and reads.
-- JPA is allowed **only** in `read` (the schema writer). It stays off `write`, where `JpaEventStoreAutoConfiguration` could install an aggregate-based, DCB-incapable store when the connector is absent or disabled.
-- `read` runs Flyway and a startup smoke check that executes each query with `LIMIT 0`, so a missing table or renamed column fails at boot.
-- Read models are eventually consistent: the gateway's POST returns before `read` commits. The UI shows the pushed update when it arrives; it never decrements seats client-side.
+- JPA is allowed **only** in `courses-read` (the schema writer). It stays off `courses-write`, where `JpaEventStoreAutoConfiguration` could install an aggregate-based, DCB-incapable store when the connector is absent or disabled.
+- `courses-read` runs Flyway and a startup smoke check that executes each query with `LIMIT 0`, so a missing table or renamed column fails at boot.
+- Read models are eventually consistent: the gateway's POST returns before `courses-read` commits. The UI shows the pushed update when it arrives; it never decrements seats client-side.
 ### Formatting
 
 - **Kotlin:** Spotless 8.11.0 with `ktlint()` for `*.kt` and `*.kts`, plus `trimTrailingWhitespace()` and `endWithNewline()`. `spotlessCheck` is attached to `check`, so `./gradlew build` fails on drift.
-- **Frontend:** Prettier with `format` (write) and `format:check` (verify) npm scripts; `:frontend:check` depends on `format:check`.
-- **One line length: 100 everywhere.** ktlint reads `max_line_length = 100` from the root `.editorconfig` (Spotless picks up the top-level file by default); Prettier reads `.editorconfig` by default; `.prettierrc.json` pins `printWidth: 100` explicitly so both numbers match even if a call site forgets the flag. Markdown is not wrapped (`proseWrap: preserve`) — prose lines are a review concern, not a formatter's.
+- **Frontend:** Prettier with `format` (write) and `format:check` (verify) npm scripts; `:courses-frontend:check` depends on `format:check`.
+- **One line length: 100 everywhere.** ktlint reads `max_line_length = 100` from the root `.editorconfig` (Spotless picks up the top-level file by default); Prettier reads `.editorconfig` by default; `.prettierrc.json` pins `printWidth: 100` explicitly so both numbers match even if a call site forgets the flag. Markdown prose is wrapped at the same 100 (`proseWrap: always`) for repo-level docs; `.planning` is excluded, so GSD's machine-read files are untouched.
 - **Shared baseline:** a root `.editorconfig` (LF, final newline, trimmed whitespace, 4-space Kotlin, 2-space TS/JS/JSON/CSS, `max_line_length = 100`).
 - **Workflow:** `./gradlew spotlessApply` and `npm run format` are the only sanctioned normalizers. CI verifies; it never rewrites.
 - **Repository-level files:** `scripts/format.sh` / `scripts/format-check.sh` run Prettier 3.9.10 over the repository, honouring `.prettierignore`: `.planning/`, `AGENTS.md`, `.agents/`, `.opencode/`, `*.jsonc`, lockfiles, build output and the SPA are excluded — the first two are machine-read, the SPA owns its own config.
@@ -79,18 +79,16 @@ A small course-enrollment application built to explore Axon Framework 5's Dynami
 ### Read-side caching — deferred
 
 ### Frontend verification: Playwright
-
-- **Playwright MCP** (`@playwright/mcp` 0.0.85) — configured in the tracked `opencode.jsonc` under `mcp.servers`. The agent drives the running SPA on `:8080` headless: navigate, click, assert visible state, and observe an SSE update without a reload. It is a verification aid, not a test suite, and it never replaces CI.
-- **`@playwright/test` 1.65.0** — the regression suite in `frontend/e2e/`, with `playwright.config.ts` at `baseURL: http://localhost:8080`. Tests run against the full Compose stack (`docker compose up -d` + the three services), never against a mocked backend, because the point is to prove the distributed path.
+- **Playwright MCP** (`@playwright/mcp` 0.0.85) — configured in the tracked `opencode.jsonc` under `mcp.servers`. The agent drives the running SPA on `:3000` headless: navigate, click, assert visible state, and observe an SSE update without a reload. It is a verification aid, not a test suite, and it never replaces CI.
+- **`@playwright/test` 1.65.0** — the regression suite in `courses-frontend/e2e/`, with `playwright.config.ts` at `baseURL: http://localhost:3000`. Tests run against the full Compose stack (`docker compose up -d` + the three services), never against a mocked backend, because the point is to prove the distributed path.
 - **Selectors:** `data-testid` only on elements the tests own; no text or CSS-structure selectors, which break on copy changes.
 - **Synchronisation:** assert on application state, never `waitForTimeout`. For SSE, wait for the specific value to appear (Playwright's auto-retrying assertions handle it); a timeout is a test bug, not a UI bug.
-- **State isolation:** each test creates its own course with a UUIDv7 id; the demo seed is disabled in the E2E profile, so parallel tests do not fight over one course.
+- **State isolation:** each test creates its own course with a UUIDv7 id; the E2E profile disables the three demo courses (the fixed accounts stay), so parallel tests do not fight over one course.
 - **CI:** an `e2e` job is a Phase 8 deliverable: it runs after the stack is up and publishes the HTML report as an artifact. Until then its absence is a missing gate, not a pass.
-- **FSD boundary:** E2E code lives outside `frontend/src`, so steiger's layer rules do not apply to it; shared helpers live in `frontend/e2e/fixtures`.
+- **FSD boundary:** E2E code lives outside `courses-frontend/src`, so steiger's layer rules do not apply to it; shared helpers live in `courses-frontend/e2e/fixtures`.
 ### Idempotency and retries
-
-- **Course creation is idempotent by natural key.** `POST /api/courses` takes a client-supplied `courseId`; the handler decides against `courseId`-tagged events, and a repeat returns the existing course without appending. This closes the only command with no natural uniqueness.
-- **Other commands are idempotent by effect, not by response.** A repeated enroll, waitlist join or drop appends nothing and returns a named business rejection (`already.enrolled`, `already.waitlisted`, `not.enrolled`). The state stays correct; the caller learns it was a repeat.
+- **Course creation is idempotent by natural key.** `POST /courses` takes a client-supplied `courseId`; the handler decides against `courseId`-tagged events, and a repeat returns the existing course without appending. This closes the only command with no natural uniqueness.
+- **Other commands are idempotent by effect, not by response.** A repeated enroll, waitlist join or drop appends nothing and returns a named business rejection (`already enrolled`, `already waitlisted`, `not enrolled`). The state stays correct; the caller learns it was a repeat.
 - **No automatic retries anywhere.** The gateway does not retry 409 or 422; a 5xx may be retried only by the caller and only for `CreateCourse`, which is keyed. This is a policy, not a framework default — Axon does not document command deduplication by message id, so none is assumed.
 - **Seeding is separately idempotent** (PLAT-02): it queries before dispatch, so a restart does not duplicate scenarios.
 
@@ -101,7 +99,7 @@ A small course-enrollment application built to explore Axon Framework 5's Dynami
 - **Kotlin representation:** `@JvmInline value class CourseId(val value: UUID)` and `StudentId(val value: UUID)`. `toString()` returns the canonical UUID string, which is what `@EventTag` stores; there is no second string format to drift.
 - **Boundaries:** JSON and URL carry the canonical string; Spring converts `@PathVariable UUID`; the read model stores the native `uuid` column.
 - **Creation:** the client generates the id with the `uuid` npm package (`v7()`), which is what makes idempotent `CreateCourse` possible without a server round-trip. Server-side code generates v7 for seeded data.
-- **Tests:** ids are fixed constants, never generated, so assertions and event counts stay stable.
+- **Tests:** unit and slice tests use fixed id constants, so assertions and event counts stay stable; integration, contention and E2E tests generate UUIDv7 ids, because each run creates its own course.
 - **Not UUIDv4, not a sequence.** A database sequence cannot be client-supplied, and v4 breaks the chronological property the demo relies on when reading the journal.
 ### Frontend architecture: Feature-Sliced Design
 
@@ -113,19 +111,18 @@ A small course-enrollment application built to explore Axon Framework 5's Dynami
 - **Pages compose, they do not fetch.** Data loading lives in entity/feature `api` segments.
 - **SSE lives in `shared/api/sse`** as a generic `EventSource` wrapper; `entities/<x>/api` types it with the read-model shape; features and widgets subscribe through the entity's public API.
 - **Enforcement:** `steiger ./src --fail-on-warnings` in CI (`npm run lint:fsd`) plus the `@/` path alias so boundaries are expressible and reviewable. Without `--fail-on-warnings` several FSD diagnostics stay warnings and the build stays green.
-### Live updates: SSE over subscription queries **[pivot]**
-- **Transport:** `text/event-stream` returned as `Flux<ServerSentEvent<CourseView>>` from `api`. Spring MVC 7 adapts a `Flux` like `SseEmitter`, with reactive backpressure — no manual emitter bridging.
+### Live updates: SSE over subscription queries 
+- **Transport:** `text/event-stream` returned as `Flux<ServerSentEvent<CourseView>>` from `courses-api`. Spring MVC 7 adapts a `Flux` like `SseEmitter`, with reactive backpressure — no manual emitter bridging.
 - **Subscription:** one `QueryGateway.subscriptionQuery(...)` call returns a single `Publisher`: the first item is the snapshot, later items are updates. There is no `SubscriptionQueryResult` in AF 5.4.1.
-- **Who emits:** `read` advertises `WatchCourseViewQuery`, writes the row in the same service, and is therefore the only node that emits — no cross-service notification exists. The `@EventHandler` publishes a Spring application event carrying the new view; a `@TransactionalEventListener(phase = AFTER_COMMIT)` calls `QueryUpdateEmitter.emit(...)` with it, so a rolled-back write never reaches subscribers.
-- **No `ViewChanged` command.** An earlier design sent one through `CommandGateway`; that was wrong twice — a command expresses intent, not a fact, and it forced `read` to hold a command handler it should not have.
-- **Ordering:** the view carries a monotonically increasing `version`; `read` ignores an emission older than the last one it sent, which covers reordered or duplicated handler invocations.
+- **Who emits:** `courses-read` advertises `WatchCourseViewQuery`, writes the row in the same service, and is therefore the only node that emits — no cross-service notification exists. The `@EventHandler` publishes a Spring application event carrying the new view; a `@TransactionalEventListener(phase = AFTER_COMMIT)` calls `QueryUpdateEmitter.emit(...)` with it, so a rolled-back write never reaches subscribers.
+- **No `ViewChanged` command.** An earlier design sent one through `CommandGateway`; that was wrong twice — a command expresses intent, not a fact, and it forced `courses-read` to hold a command handler it should not have.
+- **Ordering:** the view carries a monotonically increasing `version`; `courses-read` ignores an emission older than the last one it sent, which covers reordered or duplicated handler invocations.
 - **Delivery is at-most-once across the commit boundary:** an emit that fails after commit is lost until the next change; a reconnecting client still receives a fresh snapshot from the subscription's initial item. An outbox would close the gap at the cost of a second writer — rejected for this project.
-- **Dependencies:** `reactor-core` is **mandatory** for subscription queries (Axon docs); declare it explicitly in `api`. `spring-webflux` is not required for a `Flux` return.
+- **Dependencies:** `reactor-core` is **mandatory** for subscription queries (Axon docs); declare it explicitly in `courses-api`. `spring-webflux` is not required for a `Flux` return.
 - **Catch-up:** each event carries `id:` = read-model `version`; honour `Last-Event-ID` on reconnect.
-- **Lifecycle:** Spring MVC 7 uses `-1` (no timeout) for a streaming `Flux`, so `spring.mvc.async.request-timeout` is not the control here — rely on a heartbeat plus the container's async timeout, and register `QueryShutdownManager.closeImmediately()` so `SIGTERM` does not hang on open streams.
-- **Snapshot and updates share one source:** both are produced by `read`, so the "GET then subscribe" gap disappears. That pattern remains forbidden regardless.
-- **Test seam:** `curl -N` shows snapshot plus one pushed update; a killed client drops the subscription; the Phase 8 integration test asserts all three.
-
+- **Lifecycle:** Spring MVC 7 uses `-1` (no timeout) for a streaming `Flux`, so `spring.mvc.async.request-timeout` is not the control here — rely on a heartbeat plus the container's async timeout, and wire the shutdown path so `SIGTERM` does not hang on open streams: either `QueryGatewayConfigurer` registered through `MessagingConfigurer.registerQueryGateway(name, …)` with `cancellingSubscriptionQueryOnShutdown(...)`, or `QueryShutdownManager.closeImmediately()` registered through `registerShutdown(...)` with every stream wrapped in `track(...)`.
+- **Snapshot and updates share one source:** both are produced by `courses-read`, so the "GET then subscribe" gap disappears. That pattern remains forbidden regardless.
+- **Test seam:** `curl -N` shows snapshot plus one pushed update; a killed client drops the subscription; the Phase 10 integration test asserts all three.
 ### DCB in the Java API — the real names
 | Concept | Type / annotation | Package |
 |---------|-------------------|---------|
@@ -149,11 +146,11 @@ A small course-enrollment application built to explore Axon Framework 5's Dynami
 ## Installation
 | Command | What it does |
 |---|---|
-| `docker compose up -d` | Starts Axon Server (`:8124`) and PostgreSQL (`:5432`). |
-| `./gradlew build` | Builds every module, including the SPA via `:frontend`. |
-| `./gradlew bootRun --parallel` | Starts `write`, `read`, `api` in one Gradle run. |
-| `./gradlew :frontend:dev` | Vite on `:5173` with `/api` proxied to the gateway. |
-
+| `./gradlew bootBuildImage :courses-frontend:dockerBuildImage` | Builds all four Paketo images: write, read, api and frontend. |
+| `docker compose up -d` | Starts the whole stack: Axon Server (`:8124`), PostgreSQL (`:5432`), write, read, api (`:8080`) and frontend (`:3000`). |
+| `./gradlew build` | Builds every module, including the SPA via `:courses-frontend`. |
+| `docker compose up -d axonserver postgres && ./gradlew bootRun --parallel` | Dev loop: infrastructure in Compose, `courses-write`, `courses-read`, `courses-api` from Gradle. |
+| `./gradlew :courses-frontend:dev` | Vite on `:5173` with `/courses`, `/me` and `/session` proxied to the gateway. |
 ## Rules that keep the topology honest
 
 ## Kotlin adaptation — what research did NOT verify
@@ -169,18 +166,18 @@ A small course-enrollment application built to explore Axon Framework 5's Dynami
 
 | Recommended | Alternative | When to Use Alternative |
 |-------------|-------------|-------------------------|
-| Three services + Axon Server **[pivot]** | Single process, one app | If the goal is DCB only: no Axon Server, no Postgres, no license, no eventual consistency. This was the original plan and remains the lower-risk fallback. |
+| Three services + Axon Server  | Single process, one app | If the goal is DCB only: no Axon Server, no Postgres, no license, no eventual consistency. This was the original plan and remains the lower-risk fallback. |
 | Axon Server 2026.1.7 (Docker) | Embedded `InMemoryEventStorageEngine` | Tests and spikes only. It cannot be shared across processes, so it cannot carry this topology. |
 | Axoniq Spring Boot starter (commercial) | OSS `org.axonframework.extensions.spring:axon-spring-boot-starter` | Only in the single-process fallback; the OSS starter has no Axon Server connector. |
 | PostgreSQL read model | In-memory read models | Only in the single-process fallback, where the read side shares a JVM with everything else. |
 | Spring Boot 4.1.2 | Spring Boot 3.5.16 | Fallback if Boot 4 fights the commercial starter or Spring Security 7. Re-introduces manual Jackson 3 BOM ordering. |
-| One `read` service | Split projection / query service | Only if live updates are dropped: a split forces a cross-service notification, and commands cannot honestly carry one. |
+| One `courses-read` service | Split projection / query service | Only if live updates are dropped: a split forces a cross-service notification, and commands cannot honestly carry one. |
 ## What NOT to Use
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
 | `InMemoryEventStorageEngine` in a running service | Process-local; the other three services would see nothing | Axon Server |
-| `axon-server-connector` together with `spring-boot-starter-data-jpa` in `write` | JPA event-store auto-config competes with the connector's store; DCB support is lost if it wins | No datasource in `write` |
+| `axon-server-connector` together with `spring-boot-starter-data-jpa` in `courses-write` | JPA event-store auto-config competes with the connector's store; DCB support is lost if it wins | No datasource in `courses-write` |
 | An ORM in the query path | A reader with write-capable mapping invites accidental schema changes | Spring Data JDBC into immutable rows; writes stay in the projection path |
 | Read models read inside a command handler | The decision must source events, not the projection | `@InjectEntity` + `EventCriteria` |
 | Sharing JPA entities between the write and read paths | One mutable entity serving two purposes makes the read path write-capable again | JPA entities for writes, immutable row types for reads, in the same service |
@@ -232,54 +229,43 @@ A small course-enrollment application built to explore Axon Framework 5's Dynami
 - Annotate external/API boundaries, not obvious internals.
 
 ## Event sourcing
-- Events are the only shared *state* contract; commands and queries are shared message types in `domain`, and no service depends on another service's implementation.
+- Events are the only shared *state* contract; commands and queries are shared message types in `courses-domain`, and no service depends on another service's implementation.
 - Tag keys are constants in one shared tag-keys object used by both `@EventTag` and `@EventCriteriaBuilder`.
 - Never read a read model inside a command handler — the decision sources events.
 - Live updates are whole read-model snapshots over SSE; only the service advertising the watch query emits, and the gateway never forwards domain events.
 - The read service emits from `@TransactionalEventListener(AFTER_COMMIT)`, never directly inside an `@EventHandler`; a rolled-back write must not reach subscribers.
-- `read` owns both halves in one process: JPA + Flyway for the write path, Spring Data JDBC into immutable rows for the read path. Do not introduce a second read process, and keep the two persistence styles in separate packages.
+- `courses-read` owns both halves in one process: JPA + Flyway for the write path, Spring Data JDBC into immutable rows for the read path. Do not introduce a second read process, and keep the two persistence styles in separate packages.
+- **`courses-write` has no datasource and no JPA.** One classpath mistake installs an aggregate-based event store and silently voids DCB. A guard test (TOPO-03, Phase 2) asserts no `EntityManagerFactory` and a present connector.
+- **`courses-read` never appends.** It consumes events and answers queries; only `courses-write` calls `EventAppender`.
+- **Flyway migrations and the event processor live in `courses-read` only.** A guard test (TOPO-03, Phase 2) fails when another module gains either.
+- **The gateway never touches SQL or the event store.** It only sends messages.
+- **`courses-domain` has no Spring dependency.** It is the compile-time contract; a `@Component` there would let services depend on each other's implementations.
+- **Never put a routing key on `EnrollStudent`.** Command sequencing defaults to `RoutingKeySequencingPolicy`; a shared routing key serializes the last-seat race away and the demo proves nothing.
 ## Testing
+- Test classes carry their suite suffix: `*Tests` in `src/test/kotlin` and `*IT` in `src/integrationTest/kotlin`. `*CT` (`src/componentTest/kotlin`), `*E2E` (`src/e2eTest/kotlin`) and `*NC` (`src/negativeControl/kotlin`) are reserved for suites that do not exist yet; create the suite when the first class lands. Each suite runs only matching classes, and `checkTestNaming` (part of `check`) fails on a mismatch. Browser E2E is Playwright under `courses-frontend/e2e/`, outside Gradle's suites.
+- Shared test infrastructure lives in the `courses-test-support` module and is consumed with `implementation(project(":courses-test-support"))` in the integration suite: the Axon Server registration base, the Testcontainers image lookup and the Docker image properties. The module is on test classpaths only; never put it on a production classpath.
+- Unit tests live in `src/test/kotlin`; tests that need Axon Server or PostgreSQL live in `src/integrationTest/kotlin`. The Gradle `jvm-test-suite` plugin defines both suites, so the directory decides which task runs a test — never a tag or a hand-registered `Test` task.
+- `./gradlew build` must stay Docker-free: it runs the unit tests and the lint/format gates, but never `integrationTest`. Integration tests run through `./gradlew integrationTest` and own their infrastructure through Testcontainers — one container per test class, random host ports, removed after the run. Never require a pre-started Compose stack or a fixed port, and never let a test depend on state left by an earlier run.
 - Slice tests use `AxonTestFixture.with(application.configurer())` against the production configurer; contention tests never do — the fixture dispatches one action per `when` phase and cannot overlap.
 - One fixture per test, unique ids per test, no `Thread.sleep`.
-- Contention tests are barrier-driven against the live Axon Server, assert on the rejection mechanism, and carry a negative control that is tagged and excluded from the default run.
+- Contention tests are barrier-driven against the live Axon Server and assert on the rejection mechanism. The negative control will live in its own source set (`src/negativeControl/kotlin`, suffix `*NC`) with a `negativeControlTest` task, added to the suite list when the first class lands (Phase 8); it must never run inside `integrationTest`, because a control that deliberately produces two winners would turn CI red on every pull request.
 - Test names read as sentences describing the invariant.
 
 ## Git
 - Commit messages: conventional prefixes (`feat`, `fix`, `docs`, `chore`, `test`, `refactor`, `perf`, `ci`, `build`, `style`, `revert`), optional scope (`feat(command): ...`), imperative, English, ≤72 characters on the subject line.
 - The PR title becomes the squash commit in `main`, so it must follow the same format; CI enforces it (`pr-title` workflow).
+- Pull requests use `.github/pull_request_template.md`: summary, change type, decisions and trade-offs, deliberate exclusions, the local checks and a test plan.
 - One logical change per commit; planning artifacts commit alongside the work they describe.
 
-## Review loop (planning artifacts)
+## Review
 
-### When it runs
-
-- Any substantial change to `PROJECT.md`, `REQUIREMENTS.md`, `ROADMAP.md`, `research/*`, or this file.
-- The loop completes before a human is asked to read the artifact.
-
-### Rounds
-
-- **Round 1:** three reviewers in parallel, read-only — consistency, requirements/roadmap quality, technical fact-check.
-- **Round 2+:** one consistency reviewer plus only the specialist whose domain still has open findings.
-- Later rounds review the diff since the previous round and its cross-file consequences; only round 1 re-reads the whole corpus.
-- Findings are classified `blocker`, `major`, `minor`.
-
-### Exit criteria
-
-- zero open `blocker` and `major`;
-- the round's finding count is not greater than the previous round's;
-- no finding closed in an earlier round is reopened.
-
-### Convergence control
-
-- **Hard cap: 3 rounds.** A round 3 with open blockers or majors freezes the documents and escalates to the human with the open list; a fourth round needs an explicit human decision.
-- **Oscillation stop:** a reopened finding, or two findings prescribing opposite fixes, ends the loop and becomes a decision recorded in `PROJECT.md` Key Decisions.
-- **Diminishing-returns stop:** a round producing only minor findings ends the loop; minors are recorded, not fixed by default.
-- **Reviewer bar:** reviewers report only defects that would change implementation or mislead a reader; style preferences are not findings.
-
-### Recording
-
-- Every round appends to `.planning/PLANNING-REVIEW.md`: round number, reviewers, counts by severity, status per finding.
-- Acceptance marks the artifact reviewed; a later change touching more than one file or any constraint starts a new round 1.
+| Artifact | Command |
+|----------|---------|
+| Phase plan (`PLAN.md`) | `/gsd-review <phase>` — cross-AI peer review through `codex` and `claude`, written to `REVIEWS.md`, fed back with `--reviews` |
+| Plan convergence | `/gsd-plan-review-convergence <phase>` — plan → review → replan until no HIGH concerns remain, three cycles by default; enabled through `workflow.plan_review_convergence` |
+| Phase code | `/gsd-code-review <phase>` — findings land in `REVIEW.md`, `--fix` applies them |
+| Documentation claims | `/gsd-docs-update` — its `gsd-doc-verifier` checks claims against the codebase |
+| Milestone | `/gsd-audit-milestone` — audits completion against the original intent |
 ## Branching
 
 - One branch per phase: `gsd/phase-{phase}-{slug}` (config template), merged into `main` through a pull request.
@@ -290,9 +276,9 @@ A small course-enrollment application built to explore Axon Framework 5's Dynami
 ## Formatting
 
 - Kotlin: Spotless + ktlint. Normalize with `./gradlew spotlessApply`; CI verifies via `spotlessCheck`.
-- Frontend: Prettier. Normalize with `npm run format` in `frontend/`; CI verifies via `npm run format:check`.
+- Frontend: Prettier. Normalize with `npm run format` in `courses-frontend/`; CI verifies via `npm run format:check`.
 - `.editorconfig` in the root is the shared baseline; do not override it per editor.
-- Line length is **100** for Kotlin (via `.editorconfig` `max_line_length`) and for Prettier (`printWidth`); Markdown prose is not rewrapped.
+- Line length is **100** for Kotlin (via `.editorconfig` `max_line_length`) and for every Prettier target (`printWidth`), including Markdown prose in `docs/` and `README.md`; `.planning/` is excluded from Prettier.
 - Repo-level files (docs, README, workflows, root JSON): `scripts/format.sh` to write, `scripts/format-check.sh` to verify.
 - `.planning/`, `AGENTS.md` and `*.jsonc` are never Prettier-formatted: they are machine-read or generated.
 - CI never rewrites files — a red formatting check is fixed locally and pushed.
@@ -315,7 +301,7 @@ A small course-enrollment application built to explore Axon Framework 5's Dynami
 
 ## End-to-end tests
 
-- Playwright lives in `frontend/e2e/`, outside `src`, so FSD layer rules do not apply to it.
+- Playwright lives in `courses-frontend/e2e/`, outside `src`, so FSD layer rules do not apply to it.
 - Tests run against the real Compose stack; never mock the backend — the distributed path is the subject.
 - Select by `data-testid`; never by text or DOM structure.
 - No `waitForTimeout`; wait for the observable value (Playwright retries assertions).
@@ -326,16 +312,34 @@ A small course-enrollment application built to explore Axon Framework 5's Dynami
 - UUIDv7 everywhere (`uuid-creator` server-side, `uuid` npm `v7()` in the SPA). UUIDv4 is rejected: no chronological order, worse index locality.
 - Wrap ids in `@JvmInline value class` (`CourseId`, `StudentId`); never pass raw `UUID` through domain code.
 - The canonical UUID string is the only string form — it is what `@EventTag` stores and what URLs carry.
-- Tests use fixed id constants, never generated ones.
+- Unit and slice tests use fixed id constants. Integration, contention and E2E tests generate UUIDv7 ids, because each run needs its own course without colliding with a previous one.
 ## Tags
 
 - Tag keys are domain-neutral and type-implied: `courseId`, `studentId`. Do not repeat the type in the value.
 - `either(courseId, studentId)` is the sanctioned widening for a rule that genuinely spans two subjects (v2: per-student seat limit).
 
+## Build
+- Shared build configuration lives in the `build-logic` included build as three convention plugins: `kotlin-conventions` (Kotlin JVM, JDK 21 toolchain, Spotless + ktlint, the `:courses-platform` BOM), `spring-boot-conventions` (Kotlin Spring, Spring Boot, `jvm-test-suite`, service dependencies, the common `withType<JvmTestSuite>` block) and `frontend-conventions` (the `stageImageFiles` step and the `dockerBuildImage` `PackBuildImageTask`). `courses-domain` applies the first, the three services the second, `courses-frontend` the third; `courses-test-support` is a plain Kotlin library.
+- A module declares its own project dependencies, `integrationTest` suite and suite-specific test libraries. A convention carries only what every consumer needs.
+- `build-logic` imports the root `gradle/libs.versions.toml` and uses its generated `LibrariesForLibs` accessors. Never add a second catalog or inline versions in build logic.
+- `build-logic` is formatted by Spotless; the root `check` depends on its `spotlessCheck`, so CI covers the build sources as well as the modules.
+- `bootBuildInfo` excludes the timestamp: `META-INF/build-info.properties` carries version, group, artifact and name only, so rebuilding an image does not change that layer. The SPA mirrors it with `/build-info.json`, generated into `build/dist` without a timestamp.
+- `gradle.properties` enables the build cache, parallel execution and the configuration cache. Tasks must capture configuration-time values (paths, versions, names) instead of touching `project` in a `doLast` action.
+- The project `version` lives in `gradle.properties` and is overridden with `-Pversion=...`; `group` stays in the root `build.gradle.kts`.
+- `actionlint` lints `.github/workflows/*.yml` from `check`. It is a required local tool (`brew install actionlint`) and the only one whose absence fails with a named, explicit error; CI installs a pinned, checksum-verified release before the build. A missing Node or npm fails the same build through the failing `npm ci`, not through a message that names the tool.
+- Dependabot watches three ecosystems weekly — `github-actions`, `gradle` (the catalog, which `build-logic` shares) and `npm` in `courses-frontend` — grouping updates into one PR per ecosystem with a `build(deps)` title so the `title` check passes. Gradle and npm group minor and patch only (`fsd-linters` moves `steiger` with its plugin whatever the size); actions group every size. Kotlin, Spring Boot, Axon, React, Vite and TypeScript majors are ignored: they are migrations, not PRs.
+- The Gradle wrapper, `axonserver`, `postgres` and the Paketo pins are invisible to Dependabot and are bumped by hand, each with a guard: `checkComposeImages` compares the catalog with `compose.yaml`, and a wrong buildpack pin fails the image build. `.github/workflows/buildpack-updates.yml` reports the Paketo pins weekly as one issue; the bump stays manual because only an image build proves a new buildpack, and a bad release is held back in the catalog with `# hold-back: <version>`, which the workflow skips. See `docs/adr/0009-dependency-update-tracking.md`.
+- OS patches come from the Paketo run image, not from a buildpack version, so images are rebuilt before a demo and at least monthly (`./scripts/smoke-stack.sh`). CI builds them only for the Playwright e2e job and never pushes them to a registry, so nothing scans them yet — backlog item 999.2.
+- Docker image versions used by tests live in the catalog (`[versions] axonserver`, `postgres`) and reach the suites as system properties.
+- Vulnerability scanning is GitHub-native and lives on the repository, not in a file: Dependabot alerts and security updates are on, secret scanning and push protection are on, and there is no Snyk, `npm audit` gate or CodeQL. The `ignore` list in `dependabot.yml` suppresses version updates only — a security update still opens a PR, even for an ignored major. See `docs/adr/0010-github-native-vulnerability-scanning.md`.
 ## Tooling
-- After cloning, run `/setup-tooling` in OpenCode (or `./scripts/setup-tooling.sh` without an agent) — it installs the pinned GSD Core (`1.20.1`, OpenCode, project scope) or verifies an existing install.
+- After cloning, run `/setup-tooling` in OpenCode (or `./scripts/setup-tooling.sh` without an agent) — it installs the pinned GSD Core (`1.20.1`, OpenCode, project scope) or verifies an existing install, then reports the build prerequisites. `./scripts/setup-tooling.sh --check` diagnoses without installing and exits non-zero on a missing tool. `/setup-tooling --mcp` additionally runs the `connect-mcp-servers` skill.
+- Slash commands run only when the user types their name; an agent cannot invoke one. A phrase triggers a skill (matched by description), then the script or the command's file — never the command itself. Never claim a command was invoked when the work came from the script.
+- When a request matches a slash command in `.opencode/commands/`, do not carry out the command's procedure: name the command with its flags and let the user run it. This applies to the commands that own a contract — `setup-tooling` (`--check`, `--force`, `--mcp`) and the `gsd-*` workflows, which orchestrate their own subagents. Proceed only when the user asks the agent to do it instead.
+- A skill is the opposite case: it is meant to fire on intent, so a matching phrase loads it without redirection.
+- The build prerequisites are JDK, Node with npm, `actionlint`, Docker, Compose v2 and `pack`; `actionlint` is the only one whose absence fails `./gradlew build`, because `lintWorkflows` is part of `check`. The table and install hints live in `docs/tooling.md`.
 - `.opencode/` is generated and gitignored. Only hand-written project commands under `.opencode/commands/` are tracked, each with an explicit unignore line in `.gitignore`; never hand-edit the generated `opencode.json`.
-- Project MCP servers belong in the tracked root `opencode.jsonc` under `mcp.servers`; secrets use `{env:NAME}`.
+- Project MCP servers belong in the tracked root `opencode.jsonc` under `mcp.servers`; secrets use `{env:NAME}`. Auth- or IDE-bound servers (GitHub via `gh mcp`, IntelliJ) belong in the user's global config instead — the `connect-mcp-servers` skill detects, installs and wires them, handing back only the steps a human must do.
 - `docs/tooling.md` is the human-facing version of these rules.
 <!-- GSD:conventions-end -->
 
@@ -349,23 +353,23 @@ A small course-enrollment application built to explore Axon Framework 5's Dynami
 
 | Module | Kind | Responsibility | Must not |
 |---|---|---|---|
-| `platform` | `java-platform` | Re-exports the Spring Boot, Axoniq and Jackson BOMs via `api(platform(...))` with `allowDependencies()` | Contain code |
-| `domain` | library | Events, commands, queries, ids, tag keys, `DomainRejection` | Depend on Spring, JPA, or a service module |
-| `write` | app | Command handlers, decision state, `@EventCriteriaBuilder`, the only `EventAppender` | Have a datasource, JPA, or read models |
-| `read` | app | Tracking processor and JPA writes, Flyway migrations, `@QueryHandler`s over Spring Data JDBC, `QueryUpdateEmitter` | Append events or answer commands |
-| `api` | app | REST, security, gateways, SSE stream as `Flux`, seeding, race endpoint, serves the SPA | Touch SQL, append events, subscribe to the event stream, or depend on `write`/`read` |
-| `frontend` | node-gradle | React/Vite build to `dist/` | Contain domain logic |
-
+| `courses-platform` | `java-platform` | Re-exports the Spring Boot and Axoniq BOMs (Boot manages Jackson) via `api(platform(...))` with `allowDependencies()` | Contain code |
+| `courses-domain` | library | Events, commands, queries, ids, tag keys, `DomainRejection` | Depend on Spring, JPA, or a service module |
+| `courses-write` | app | Command handlers, decision state, `@EventCriteriaBuilder`, the only `EventAppender` | Have a datasource, JPA, or read models |
+| `courses-read` | app | Tracking processor and JPA writes, Flyway migrations, `@QueryHandler`s over Spring Data JDBC, `QueryUpdateEmitter` | Append events or answer commands |
+| `courses-api` | app | REST, security, gateways, SSE stream as `Flux`, seeding | Serve the SPA, touch SQL, append events, subscribe to the event stream, or depend on `courses-write`/`courses-read` |
+| `courses-frontend` | Gradle module + container | React/Vite build to `build/dist`, shipped as a standalone nginx image built with Paketo buildpacks | Contain domain logic |
+| `courses-test-support` | library (test) | Shared test infrastructure: the Axon Server registration base and the Testcontainers image lookup | Be on a production classpath |
 ## Boundaries
 - Decisions are scoped by `courseId`; `studentId` is checked from the event payload.
 - `@EventCriteriaBuilder` is the boundary: its `EventCriteria` is both the read filter and the write-conflict definition.
 - `EnrollStudent` carries no routing key, so concurrent enrollments really race.
-- `read` writes the row and emits its subscription-query update from the same service; the emit happens after commit, so a rolled-back write never reaches a subscriber.
+- `courses-read` writes the row and emits its subscription-query update from the same service; the emit happens after commit, so a rolled-back write never reaches a subscriber.
 - The gateway never subscribes to events; clients receive read-model snapshots only.
 ## Data flow
-- The gateway sends a command to Axon Server; `write` sources the criteria, evolves state, and appends with `AppendCondition`.
+- The gateway sends a command to Axon Server; `courses-write` sources the criteria, evolves state, and appends with `AppendCondition`.
 - Axon Server stores the event and rejects a conflicting append with `AppendEventsTransactionRejectedException`.
-- `read` consumes the event, writes PostgreSQL, and after commit emits the new view.
+- `courses-read` consumes the event, writes PostgreSQL, and after commit emits the new view.
 - The UI receives the snapshot and updates over SSE from the gateway; point-in-time reads go through `QueryGateway`.
 
 ## Identifiers and idempotency
@@ -381,8 +385,11 @@ A small course-enrollment application built to explore Axon Framework 5's Dynami
 
 | Skill | Description | Path |
 |-------|-------------|------|
+| connect-mcp-servers | Connect the user-level MCP servers this project works with — GitHub through the `gh mcp` extension and IntelliJ IDEA's built-in server — by detecting what the machine already has, installing what is missing and wiring the rest into the user's global OpenCode config, handing back only the steps that need a human. Use when the user asks to set up, install, connect or repair MCP servers or agent tools, when GitHub/IDE MCP tools are missing from a session, or when a server is configured but unreachable. | `.agents/skills/connect-mcp-servers/SKILL.md` |
 | gh-cli | GitHub CLI (gh) comprehensive reference for repositories, issues, pull requests, Actions, projects, releases, gists, codespaces, organizations, extensions, and all GitHub operations from the command line. | `.agents/skills/gh-cli/SKILL.md` |
 | github-actions-workflows | Background knowledge (not a command) on writing and reviewing GitHub Actions workflows, composite actions, and reusable workflows. Covers permissions and GITHUB_TOKEN, pull_request_target and workflow_run, script injection through github.event context, SHA pinning of every uses reference with a version comment, OIDC instead of stored cloud credentials, secrets inherit versus named secrets, environments, concurrency and cancel-in-progress, timeout-minutes, fail-fast, actions/cache keys and cache poisoning, upload-artifact and download-artifact, paths filters on required checks, workflow_dispatch inputs, cron, reusable workflow vs composite action and workflow_call, action.yml rules, thin SHA-pinned wrapper actions, Dependabot github-actions configuration and cooldown, GITHUB_OUTPUT, actionlint and zizmor findings, and how to verify a workflow change. Use when adding or changing a file under .github/workflows, an action.yml, or Dependabot configuration for actions. | `.agents/skills/github-actions-workflows/SKILL.md` |
+| gradle-best-practices | "Audit a Gradle project against the official Gradle best practices, report findings, and propose code changes to bring the build into compliance. Use this skill whenever the user wants to check, audit, lint, review, or validate a Gradle build — and also when they want to apply, adopt, fix, or enforce best practices. Trigger on phrases like 'check my build', 'audit gradle', 'best practices review', 'any issues with my build?', 'gradle health check', 'lint my build files', 'is my gradle setup correct?', 'apply gradle best practices', 'fix my build to follow best practices', 'make my build follow best practices', 'modernize my build', or simply 'check best practices'. Also trigger when the user asks about Gradle build quality concerns such as dependency management, build performance, build structure, or task wiring." | `.agents/skills/gradle-best-practices/SKILL.md` |
+| gradle-wrapper-upgrade | "Use whenever the user asks to upgrade, bump, or update the Gradle wrapper, `gradlew`, `distributionUrl`, `gradle-wrapper.properties`, or the build's Gradle version, on Gradle 7.0–9.x — or asks *how* that is done. Covers both modes: 'upgrade the wrapper' means perform it; a 'how do I upgrade' question is answered with the copy-pasteable commands rather than by running them. Not for adding a wrapper to a build that has none." | `.agents/skills/gradle-wrapper-upgrade/SKILL.md` |
 | pull-request-review | Review a pull request or branch diff like a staff engineer. Verify it does what the issue asks, find correctness and security defects with file and line evidence, check tests and compatibility, and deliver prioritized, actionable comments. Use for PR review, branch review, and "review my changes". | `.agents/skills/pull-request-review/SKILL.md` |
 <!-- GSD:skills-end -->
 
@@ -405,6 +412,26 @@ Do not make direct repo edits outside a GSD workflow unless the user explicitly 
 
 ## Developer Profile
 
-> Profile not yet configured. Run `/gsd-profile-user` to generate your developer profile.
-> This section is managed by `generate-claude-profile` -- do not edit manually.
+> Generated by GSD from questionnaire. Run `/gsd-profile-user` to update.
+
+| Dimension | Rating | Confidence |
+|-----------|--------|------------|
+| Communication | mixed | LOW |
+| Decisions | delegator | MEDIUM |
+| Explanations | detailed | MEDIUM |
+| Debugging | diagnostic | MEDIUM |
+| UX Philosophy | design-conscious | MEDIUM |
+| Vendor Choices | conservative | MEDIUM |
+| Frustrations | instruction-adherence | MEDIUM |
+| Learning | guided | MEDIUM |
+
+**Directives:**
+- **Communication:** Adapt response detail to match the complexity of each request. Brief for simple tasks, detailed for complex ones.
+- **Decisions:** Make clear recommendations with confidence. Explain your reasoning briefly, but own the suggestion.
+- **Explanations:** Explain the approach, key trade-offs, and code structure alongside the implementation. Use headers to organize.
+- **Debugging:** Diagnose the root cause before presenting the fix. Explain what went wrong and why the fix addresses it.
+- **UX Philosophy:** Invest in UX quality: thoughtful spacing, smooth transitions, responsive layouts. Treat design as a first-class concern.
+- **Vendor Choices:** Recommend well-established, widely-adopted tools with strong community support. Avoid bleeding-edge options.
+- **Frustrations:** Follow instructions precisely. Re-read constraints before responding. If requirements conflict, flag the conflict rather than silently choosing.
+- **Learning:** Explain concepts in context of the developer's codebase. Use their actual code as examples when teaching.
 <!-- GSD:profile-end -->

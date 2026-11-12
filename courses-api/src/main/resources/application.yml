@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: api
+
+server:
+  port: 8080
+
+axon:
+  axonserver:
+    servers: ${AXON_SERVER:localhost:8124}
+
+courses:
+  cors:
+    # The frontend runs on its own origin; unset means no cross-origin access is allowed.
+    allowed-origins: ${COURSES_CORS_ALLOWED_ORIGINS:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

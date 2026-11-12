@@ -20,7 +20,7 @@ out/
 
 # Node / frontend
 node_modules/
-frontend/dist/
+courses-frontend/dist/
 npm-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
@@ -48,6 +48,7 @@ test-results/
 playwright-report/
 blob-report/
 .playwright/
+.playwright-mcp/
 
 # Logs and test reports
 *.log

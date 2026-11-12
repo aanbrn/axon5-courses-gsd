@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: write
+
+server:
+  port: 8081
+
+axon:
+  axonserver:
+    servers: ${AXON_SERVER:localhost:8124}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

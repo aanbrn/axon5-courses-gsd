@@ -1,0 +1,57 @@
+# Entries referenced only from build-logic precompiled scripts are flagged by IntelliJ's
+# UnusedVersionCatalogEntry inspection, which does not resolve the catalog there; each carries a
+# suppression comment. Gradle resolves them normally.
+
+[versions]
+# noinspection UnusedVersionCatalogEntry
+java = "21"
+kotlin = "2.4.21"
+springBoot = "4.1.2"
+axon = "5.4.1"
+# noinspection UnusedVersionCatalogEntry
+axonserver = "2026.1.7"
+# noinspection UnusedVersionCatalogEntry
+postgres = "18.6"
+# noinspection UnusedVersionCatalogEntry
+# 1.3.6 fails to extract with pack 0.40.10: "could not find label
+# 'io.buildpacks.buildpackage.metadata'" (2026-11-12). Re-take it when a later release or a newer
+# pack resolves it, and rebuild the frontend image to prove it. The marker tells the weekly
+# buildpack-updates workflow to stay quiet about exactly this version.
+paketo-nginx = "1.3.5" # hold-back: 1.3.6
+# noinspection UnusedVersionCatalogEntry
+paketo-procfile = "5.15.8"
+# noinspection UnusedVersionCatalogEntry
+paketo-builder-jammy-base = "0.4.683"
+# noinspection UnusedVersionCatalogEntry
+paketo-builder-noble-java-tiny = "0.0.212"
+# noinspection UnusedVersionCatalogEntry
+paketo-health-checker = "2.14.3"
+spotless = "8.11.0"
+ktlint = "1.8.0"
+
+[libraries]
+spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
+axoniq-bom = { module = "io.axoniq.framework:axoniq-framework-bom", version.ref = "axon" }
+axoniq-spring-boot-starter = { module = "io.axoniq.framework:axoniq-spring-boot-starter" }
+kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
+# noinspection UnusedVersionCatalogEntry
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+
+# Versions come from the Spring Boot BOM re-exported by :courses-platform.
+spring-boot-starter-webmvc = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
+# noinspection UnusedVersionCatalogEntry
+spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+awaitility = { module = "org.awaitility:awaitility" }
+testcontainers-junit-jupiter = { module = "org.testcontainers:testcontainers-junit-jupiter" }
+testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql" }
+
+# Plugin modules for build-logic convention plugins.
+kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+kotlin-allopen = { module = "org.jetbrains.kotlin:kotlin-allopen", version.ref = "kotlin" }
+spring-boot-gradle-plugin = { module = "org.springframework.boot:spring-boot-gradle-plugin", version.ref = "springBoot" }
+spotless-gradle-plugin = { module = "com.diffplug.spotless:spotless-plugin-gradle", version.ref = "spotless" }
+
+[plugins]
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
