@@ -275,6 +275,9 @@ Captured context:
 - Related: `docs/tooling.md` explains why registration is proven by a test rather than by
   `/actuator/health`; this item decides what health may be used for.
 
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ### Phase 999.4: Generate upstream evidence tables from commands (BACKLOG)
 
 **Goal**: A claim table in `docs/upstream-reports/` is produced and checked by a script, so a citation
@@ -298,3 +301,6 @@ Captured context:
   first. 999.4 exists because the second already happened twice.
 - Related: `docs/upstream-reports/README.md` defines the gate; `.planning/codebase/CONVENTIONS.md`
   § Upstream reports defines what may be published.
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
