@@ -94,13 +94,202 @@ function basename(token: string): string {
 }
 
 /**
- * Task 1 detector: the first `git` token followed by a `commit` token. The forms that need a real
- * walk — `-C`, env prefixes, chained statements — arrive with the hardened detector.
+ * Statement separators the guard splits on before walking tokens. The shared GSD scanner does not
+ * split on control operators — `git commit && echo` yields `&&` as an ordinary token — so the split
+ * is ours and the token walk runs per statement.
+ */
+const STATEMENT_PAIRS = new Set(['&&', '||']);
+
+const STATEMENT_SINGLES = new Set([';', '|', '\n']);
+
+/**
+ * Git global options that consume the following token as their value. `-c` and its glued
+ * `-cfoo.bar=1` spelling are handled separately.
+ */
+const GIT_ARGUMENT_OPTIONS = new Set([
+  '-C',
+  '-c',
+  '--git-dir',
+  '--work-tree',
+  '--namespace',
+  '--super-prefix',
+  '--exec-path',
+  '--html-path',
+  '--man-path',
+  '--info-path',
+  '--list-cmds',
+]);
+
+/** Git global flags that take no value. */
+const GIT_BOOLEAN_OPTIONS = new Set([
+  '-p',
+  '--paginate',
+  '--no-pager',
+  '--no-replace-objects',
+  '--bare',
+  '--literal-pathspecs',
+  '--glob-pathspecs',
+  '--noglob-pathspecs',
+  '--icase-pathspecs',
+  '--no-optional-locks',
+  '-P',
+  '--no-lazy-fetch',
+  '--version',
+  '--help',
+]);
+
+/**
+ * `git commit` options that consume the following token. Without this walk, `git commit -m
+ * "--dry-run"` would read the message as a flag and be allowed.
+ */
+const COMMIT_ARGUMENT_OPTIONS = new Set([
+  '-m',
+  '--message',
+  '-F',
+  '--file',
+  '-C',
+  '--reuse-message',
+  '-c',
+  '--reedit-message',
+  '-t',
+  '--template',
+  '--author',
+  '--date',
+  '--fixup',
+  '--squash',
+  '--cleanup',
+  '-S',
+  '--gpg-sign',
+  '--pathspec-from-file',
+]);
+
+/** `git commit` flags that mean the invocation does not create a commit. */
+const COMMIT_NO_COMMIT_FLAGS = new Set(['--dry-run', '--help', '-h']);
+
+interface Subcommand {
+  readonly name: string;
+  readonly args: readonly string[];
+}
+
+/**
+ * Split a command line into statements at `&&`, `||`, `;`, `|`, a newline and a spaced bare `&`,
+ * never inside quotes. Quotes stay in the returned text so the tokenizer still sees them.
+ */
+export function splitStatements(command: string): string[] {
+  const statements: string[] = [];
+  let current = '';
+  let quote: string | null = null;
+
+  for (let index = 0; index < command.length; index++) {
+    const character = command[index];
+
+    if (quote) {
+      current += character;
+      if (character === quote) quote = null;
+      continue;
+    }
+
+    if (character === '"' || character === "'") {
+      quote = character;
+      current += character;
+      continue;
+    }
+
+    const pair = command.slice(index, index + 2);
+    if (STATEMENT_PAIRS.has(pair)) {
+      statements.push(current);
+      current = '';
+      index++;
+      continue;
+    }
+
+    if (STATEMENT_SINGLES.has(character)) {
+      statements.push(current);
+      current = '';
+      continue;
+    }
+
+    // A bare `&` separates only when it stands alone; `2>&1` is a redirect, not a statement break.
+    const previous = command[index - 1] ?? ' ';
+    const next = command[index + 1] ?? ' ';
+    if (character === '&' && /\s/.test(previous) && /\s/.test(next)) {
+      statements.push(current);
+      current = '';
+      continue;
+    }
+
+    current += character;
+  }
+
+  statements.push(current);
+  return statements
+    .map((statement) => statement.trim())
+    .filter((statement) => statement.length > 0);
+}
+
+/**
+ * Walk one statement's tokens the way `skipToSubcommand` does: past leading `NAME=value` env
+ * assignments, past the git executable (a full path is accepted), and past the global options git
+ * takes before a subcommand.
+ */
+function subcommandOf(tokens: readonly string[]): Subcommand | null {
+  let index = 0;
+  while (index < tokens.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[index])) index++;
+  if (index >= tokens.length) return null;
+
+  const executable = tokens[index++];
+  if (basename(executable) !== 'git') return null;
+
+  while (index < tokens.length) {
+    const token = tokens[index];
+    const equals = token.indexOf('=');
+    const name = equals === -1 ? token : token.slice(0, equals);
+    if (GIT_ARGUMENT_OPTIONS.has(name)) {
+      index += equals === -1 ? 2 : 1;
+      continue;
+    }
+    // Glued config override: git accepts `-cfoo.bar=1` with its argument attached.
+    if (/^-c\S*=/.test(token)) {
+      index++;
+      continue;
+    }
+    if (GIT_BOOLEAN_OPTIONS.has(token)) {
+      index++;
+      continue;
+    }
+    break;
+  }
+
+  if (index >= tokens.length) return null;
+  return { name: tokens[index], args: tokens.slice(index + 1) };
+}
+
+/** True when `git commit`'s own arguments ask it not to commit. */
+function meansNoCommit(args: readonly string[]): boolean {
+  for (let index = 0; index < args.length; index++) {
+    const arg = args[index];
+    // Everything after `--` is a pathspec, never an option.
+    if (arg === '--') return false;
+    if (COMMIT_ARGUMENT_OPTIONS.has(arg)) {
+      index++;
+      continue;
+    }
+    if (COMMIT_NO_COMMIT_FLAGS.has(arg)) return true;
+  }
+  return false;
+}
+
+/**
+ * A commit-shaped invocation, decided by the token walk rather than by a substring. `git commit
+ * --dry-run`, `git commit --help`, `git commit-tree`, `git log --grep commit` and `echo "git
+ * commit"` are therefore not commits.
  */
 function isCommitCommand(command: string): boolean {
-  const tokens = tokenize(command);
-  for (let index = 0; index < tokens.length - 1; index++) {
-    if (basename(tokens[index]) === 'git' && tokens[index + 1] === 'commit') return true;
+  for (const statement of splitStatements(command)) {
+    const subcommand = subcommandOf(tokenize(statement));
+    if (!subcommand || subcommand.name !== 'commit') continue;
+    if (meansNoCommit(subcommand.args)) continue;
+    return true;
   }
   return false;
 }

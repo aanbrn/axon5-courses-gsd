@@ -1,10 +1,40 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createState, decide, recordPrompt } from './guard.ts';
+import { createState, decide, decideSafely, recordPrompt } from './guard.ts';
 import type { GuardInput, Verdict } from './guard.ts';
 
 const SESSION = 'session-1';
-const COMMIT_INPUT = { command: 'git commit -m "feat: the thing"' };
+
+/** Every form the token walk must recognise as a real commit. */
+const COMMITS = [
+  'git commit -m "feat: the thing"',
+  'git commit -am "fix: the thing"',
+  'git commit',
+  'git -C /repo commit -m "feat: the thing"',
+  'git -c user.name=someone commit -m "feat: the thing"',
+  'GIT_AUTHOR_NAME=someone git commit -m "feat: the thing"',
+  '/usr/bin/git commit -m "feat: the thing"',
+  'true && git commit -m "feat: the thing"',
+  'git add . ; git commit -m "feat: the thing"',
+  'git status --short || git commit -m "feat: the thing"',
+  'git commit -m "--dry-run"',
+  'git -C /repo commit --amend --no-edit',
+];
+
+/** Commands that only look like commits, plus the two forms that mean "do not commit". */
+const NOT_COMMITS = [
+  'git commit --dry-run',
+  'git commit --dry-run --short',
+  'git commit --help',
+  'git commit -h',
+  'git status',
+  'git commit-tree abc123',
+  'git log --grep commit',
+  'echo "git commit"',
+  'echo git commit -m x',
+  'git -c user.name=someone log --oneline',
+  'npm test',
+];
 
 interface Overrides {
   readonly tool?: string;
@@ -21,18 +51,25 @@ function verdictFor(promptText: string | undefined, overrides: Overrides = {}): 
     sessionID: SESSION,
     tool: overrides.tool ?? 'bash',
     agent: overrides.agent,
-    input: 'input' in overrides ? overrides.input : COMMIT_INPUT,
+    input: 'input' in overrides ? overrides.input : { command: COMMITS[0] },
   };
   return decide(state, event);
 }
 
-/** Asserts the verdict is a refusal that names every GSD command to type instead. */
-function assertRefusal(verdict: Verdict): void {
+function denyReason(verdict: Verdict): string {
   if (verdict.decision !== 'deny') assert.fail('expected the commit to be refused');
+  return verdict.message;
+}
+
+/** Asserts the refusal names every GSD command to type instead. */
+function assertRefusal(verdict: Verdict): void {
+  const message = denyReason(verdict);
   for (const command of ['/gsd-quick', '/gsd-fast', '/gsd-execute-phase']) {
-    assert.match(verdict.message, new RegExp(command));
+    assert.match(message, new RegExp(command));
   }
 }
+
+// --- The four headline cases -------------------------------------------------
 
 test('allows a commit while a GSD command is active', () => {
   assert.equal(verdictFor('/gsd-quick fix the flaky test').decision, 'allow');
@@ -50,4 +87,91 @@ test('leaves a non-commit bash command alone in both states', () => {
   const status = { command: 'git status --short' };
   assert.equal(verdictFor(undefined, { input: status, agent: 'build' }).decision, 'allow');
   assert.equal(verdictFor('/gsd-quick x', { input: status }).decision, 'allow');
+});
+
+// --- The detection table -----------------------------------------------------
+
+test('refuses every commit form when no GSD command is active', () => {
+  for (const command of COMMITS) {
+    const verdict = verdictFor(undefined, { agent: 'build', input: { command } });
+    assert.equal(verdict.decision, 'deny', command);
+  }
+});
+
+test('allows the same commit forms under an active command or a gsd- agent', () => {
+  for (const command of COMMITS) {
+    assert.equal(verdictFor('/gsd-quick x', { input: { command } }).decision, 'allow', command);
+    assert.equal(
+      verdictFor(undefined, { agent: 'gsd-executor', input: { command } }).decision,
+      'allow',
+      command,
+    );
+  }
+});
+
+test('allows every command that only looks like a commit', () => {
+  for (const command of NOT_COMMITS) {
+    const verdict = verdictFor(undefined, { agent: 'build', input: { command } });
+    assert.equal(verdict.decision, 'allow', command);
+  }
+});
+
+test('treats the OpenCode 2.x shell tool id the same as bash', () => {
+  assert.equal(verdictFor(undefined, { tool: 'shell', agent: 'build' }).decision, 'deny');
+  assert.equal(verdictFor('/gsd-quick x', { tool: 'shell' }).decision, 'allow');
+});
+
+// --- Scope and state -------------------------------------------------------
+
+test('ignores every tool that is not a shell', () => {
+  const input = { command: COMMITS[0] };
+  for (const tool of ['read', 'write', 'edit', 'grep']) {
+    assert.equal(verdictFor(undefined, { tool, agent: 'build', input }).decision, 'allow', tool);
+  }
+});
+
+test('ignores a shell call whose input carries no command string', () => {
+  for (const input of [undefined, null, {}, { command: 42 }, { filePath: 'x' }]) {
+    assert.equal(verdictFor(undefined, { agent: 'build', input }).decision, 'allow');
+  }
+});
+
+test('an absent or empty agent is not a subagent', () => {
+  assertRefusal(verdictFor(undefined, { agent: undefined }));
+  assertRefusal(verdictFor(undefined, { agent: '' }));
+});
+
+test('a plain prompt clears the command an earlier prompt recorded', () => {
+  const state = createState();
+  const event: GuardInput = {
+    sessionID: SESSION,
+    tool: 'bash',
+    agent: 'build',
+    input: { command: COMMITS[0] },
+  };
+
+  recordPrompt(state, SESSION, '/gsd-quick fix the flaky test');
+  assert.equal(decide(state, event).decision, 'allow');
+  recordPrompt(state, SESSION, 'thanks, carry on');
+  assert.equal(decide(state, event).decision, 'deny');
+});
+
+// --- Fail open ---------------------------------------------------------------
+
+test('fails open and logs once when the decision itself breaks', () => {
+  const state = createState();
+  const messages: string[] = [];
+  const log = (message: string) => messages.push(message);
+  const broken = {
+    get command(): string {
+      throw new Error('the guard broke');
+    },
+  };
+  const event: GuardInput = { sessionID: SESSION, tool: 'bash', agent: 'build', input: broken };
+
+  assert.equal(decideSafely(state, event, log).decision, 'allow');
+  assert.equal(decideSafely(state, event, log).decision, 'allow');
+  assert.equal(messages.length, 1);
+  assert.match(messages[0], /^commit-guard:/);
+  assert.match(messages[0], /allowed/);
 });
