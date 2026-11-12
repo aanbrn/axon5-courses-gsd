@@ -1,5 +1,5 @@
 /**
- * Prints the four verdicts the guard must reach, and exits non-zero when one differs.
+ * Prints the verdicts the guard must reach, and exits non-zero when one differs.
  *
  * It needs no session, no server and no plugin runtime — the decision function is pure, so this is
  * the same check the tests make, in a form a human can read in one glance.
@@ -28,8 +28,14 @@ const CASES: readonly Case[] = [
     agent: 'gsd-executor',
   },
   {
-    name: 'neither a command nor a gsd- agent',
+    name: 'a plain prompt with no GSD command',
     expected: 'deny',
+    prompt: 'please commit this',
+    agent: 'build',
+  },
+  {
+    name: 'a session the prompt hook never saw',
+    expected: 'allow',
     agent: 'build',
   },
   {

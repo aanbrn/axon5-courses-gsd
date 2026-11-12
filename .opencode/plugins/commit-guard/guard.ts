@@ -42,16 +42,23 @@ export const ALLOW: Verdict = { decision: 'allow' };
  */
 export interface GuardState {
   readonly active: Map<string, string>;
+  /**
+   * Sessions whose prompt this plugin has seen. A session missing here is unknown rather than
+   * arbitrary: the plugin may have loaded after the session's prompt arrived, and a subagent session
+   * never receives one. Unknown sessions are allowed — see `decide`.
+   */
+  readonly seen: Set<string>;
   reported: boolean;
 }
 
 export function createState(): GuardState {
-  return { active: new Map(), reported: false };
+  return { active: new Map(), seen: new Set(), reported: false };
 }
 
-/** A GSD prompt records the command; any other prompt clears it. */
+/** A GSD prompt records the command; any other prompt clears it. Either way the session is now known. */
 export function recordPrompt(state: GuardState, sessionID: string, promptText: string): void {
   const match = GSD_COMMAND.exec(promptText);
+  state.seen.add(sessionID);
   if (match) state.active.set(sessionID, match[1]);
   else state.active.delete(sessionID);
 }
@@ -298,8 +305,9 @@ function isCommitCommand(command: string): boolean {
  * The decision. Pure: same input and state, same verdict, and it never writes or logs.
  *
  * A call is a guarded commit only when the shell tool runs a commit-shaped command. That command is
- * then allowed when the session's latest prompt typed a GSD command, or when the call comes from a
- * `gsd-*` subagent — subagents never receive a prompt, so their name is the signal.
+ * then allowed when the session's latest prompt typed a GSD command, when the call comes from a
+ * `gsd-*` subagent — subagents never receive a prompt, so their name is the signal — or when the
+ * session is unknown to the prompt hook. The last case is deliberate: see the `seen` field.
  */
 export function decide(state: GuardState, event: GuardInput): Verdict {
   if (!SHELL_TOOL_IDS.has(event.tool.toLowerCase())) return ALLOW;
@@ -309,6 +317,10 @@ export function decide(state: GuardState, event: GuardInput): Verdict {
 
   if (state.active.has(event.sessionID)) return ALLOW;
   if (event.agent && event.agent.startsWith('gsd-')) return ALLOW;
+  // Unknown session: the prompt hook never reported one, so there is no evidence of an arbitrary
+  // commit — only of a plugin that loaded late. Refusing here would block the workflow that is
+  // running. A session that has reported a non-GSD prompt is known, and that is the case to refuse.
+  if (!state.seen.has(event.sessionID)) return ALLOW;
 
   return { decision: 'deny', message: REFUSAL };
 }

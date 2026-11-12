@@ -45,7 +45,10 @@ interface Overrides {
 /** Decides one call, optionally under a prompt the session just received. */
 function verdictFor(promptText: string | undefined, overrides: Overrides = {}): Verdict {
   const state = createState();
-  if (promptText !== undefined) recordPrompt(state, SESSION, promptText);
+  // `undefined` stands for an ordinary message from the owner: the session is known and no GSD
+  // command is active, which is the case the guard refuses. An unknown session is exercised
+  // separately, because it is the one case the prompt hook may never report.
+  recordPrompt(state, SESSION, promptText ?? 'an ordinary request');
 
   const event: GuardInput = {
     sessionID: SESSION,
@@ -153,6 +156,34 @@ test('a plain prompt clears the command an earlier prompt recorded', () => {
   recordPrompt(state, SESSION, '/gsd-quick fix the flaky test');
   assert.equal(decide(state, event).decision, 'allow');
   recordPrompt(state, SESSION, 'thanks, carry on');
+  assert.equal(decide(state, event).decision, 'deny');
+});
+
+test('allows a session the prompt hook never reported', () => {
+  // The plugin can load after a session's prompt arrived, and a subagent session never has one.
+  // Neither is evidence of an arbitrary commit, so both are allowed; only a session that reported a
+  // non-GSD prompt is refused.
+  const state = createState();
+  const event: GuardInput = {
+    sessionID: 'session-the-hook-never-saw',
+    tool: 'bash',
+    agent: 'build',
+    input: { command: COMMITS[0] },
+  };
+
+  assert.equal(decide(state, event).decision, 'allow');
+});
+
+test('refuses the same session once a non-GSD prompt is reported', () => {
+  const state = createState();
+  const event: GuardInput = {
+    sessionID: 'session-the-hook-never-saw',
+    tool: 'bash',
+    agent: 'build',
+    input: { command: COMMITS[0] },
+  };
+
+  recordPrompt(state, event.sessionID, 'please fix the build');
   assert.equal(decide(state, event).decision, 'deny');
 });
 

@@ -317,9 +317,12 @@ enforces that with nothing to approve:
 - before every shell tool call it decides whether the command is a commit, and refuses when it is
   and neither allow condition holds.
 
-A commit is allowed in exactly two cases: the session's latest prompt typed a GSD command, or the
-call comes from a `gsd-*` subagent — subagents never receive a prompt, so their agent name is the
-signal. A refusal names the command to type instead, `/gsd-quick`, `/gsd-fast` or
+A commit is allowed in three cases: the session's latest prompt typed a GSD command; the call comes
+from a `gsd-*` subagent — subagents never receive a prompt, so their agent name is the signal; or
+the prompt hook has never reported that session at all. The third case is deliberate: the plugin can
+load after a session's prompt arrived, and refusing there would block the workflow that is running
+rather than an arbitrary commit. Only a session whose latest prompt is a known non-GSD message is
+refused. A refusal names the command to type instead, `/gsd-quick`, `/gsd-fast` or
 `/gsd-execute-phase`, rather than only reporting that the call was denied.
 
 The detector is a token walk, not a substring. `git -C <path> commit`, `NAME=value git commit`,
@@ -354,9 +357,10 @@ a commit must be refused with `/gsd-quick` in the message, and the same commit u
 must land.
 
 The honest limit is the signal itself. Prompt text is the only evidence that a command started, so a
-session that never received the command prompt — a resumed session, a message typed mid-command —
-cannot commit, and a subagent's commits are trusted on its `gsd-` name alone. The guard is an
-authoring discipline, not a security control: `sh -c`, an alias or a script is out of its reach.
+session whose prompt the plugin never saw is allowed — a late-loaded plugin and a resumed session
+look the same as an honest one. A subagent's commits are trusted on its `gsd-` name alone. The guard
+is an authoring discipline, not a security control: `sh -c`, an alias or a script is out of its
+reach.
 
 ## Build logic
 
