@@ -374,6 +374,12 @@ A small course-enrollment application built to explore Axon Framework 5's Dynami
 - `EnrollStudent` carries no routing key, so concurrent enrollments really race.
 - `courses-read` writes the row and emits its subscription-query update from the same service; the emit happens after commit, so a rolled-back write never reaches a subscriber.
 - The gateway never subscribes to events; clients receive read-model snapshots only.
+
+## Health and registration
+- The Axon starter contributes to actuator: `AxonServerHealthIndicator` exposes an `axonServer` component, and `AxonServerStatusAggregator` orders `DOWN, OUT_OF_SERVICE, WARN, UP, UNKNOWN`, so a partial connection reports `WARN` and a total loss `DOWN`.
+- Two gaps keep it from being the evidence the project cites: `/actuator/health` hides component detail unless `management.endpoint.health.show-details` is set, and the indicator reports `UP` while its connections map is empty — the state before the first connection attempt.
+- Registration is therefore asserted directly: `AxonServerConnectionManager.connections()["default"] == true`, under a bounded Awaitility poll, in `AxonServerRegistrationIT`.
+- Actuator security — authorization, a non-published management port, what is exposed — is backlog item 999.3, decided with Phase 2's authentication.
 ## Data flow
 - The gateway sends a command to Axon Server; `courses-write` sources the criteria, evolves state, and appends with `AppendCondition`.
 - Axon Server stores the event and rejects a conflicting append with `AppendEventsTransactionRejectedException`.
