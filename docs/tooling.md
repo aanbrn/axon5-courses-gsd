@@ -313,10 +313,10 @@ with its own copy. Bump the pin together with OpenCode.
 the session never reported a prompt. The `commit-guard` plugin under `.opencode/plugins/` enforces
 that with nothing to approve:
 
-- on prompt admission it records the session's GSD command when the prompt starts with one, and
-  clears the record for any other prompt; either way the session is then known;
-- before every shell tool call it decides whether the command is a commit, and refuses when it is
-  and none of the three allow conditions holds.
+- on prompt admission it records the session's GSD command, and clears the record for any other
+  prompt; either way the session is then known. Two shapes count as a command: raw input that starts
+  with `/gsd-<name>`, and the expanded template OpenCode actually delivers, recognised by its
+  `<execution_context>` block and the `gsd-core/workflows/<name>.md` path inside it;
 
 A commit is allowed in three cases: the session's latest prompt typed a GSD command; the call comes
 from a `gsd-*` subagent — subagents never receive a prompt, so their agent name is the signal; or
@@ -349,7 +349,7 @@ Verify it at three levels:
 ```bash
 npm --prefix .opencode/plugins/commit-guard test         # the detection table, node:test
 npm --prefix .opencode/plugins/commit-guard run typecheck # the hooks against @opencode/plugin
-npm --prefix .opencode/plugins/commit-guard run verify    # five verdicts, printed
+npm --prefix .opencode/plugins/commit-guard run verify    # six verdicts, printed
 ```
 
 CI runs the first after the formatting gate. The hooks need the OpenCode server, so after editing
@@ -357,11 +357,14 @@ CI runs the first after the formatting gate. The hooks need the OpenCode server,
 a commit must be refused with `/gsd-quick` in the message, and the same commit under `/gsd-quick`
 must land.
 
-The honest limit is the signal itself. Prompt text is the only evidence that a command started, so a
-session whose prompt the plugin never saw is allowed — a late-loaded plugin and a resumed session
-look the same as an honest one. A subagent's commits are trusted on its `gsd-` name alone. The guard
-is an authoring discipline, not a security control: `sh -c`, an alias or a script is out of its
-reach.
+The honest limit is the signal, and it is a heuristic. OpenCode expands a slash command before the
+prompt hook runs, so the command name survives only as the workflow path inside
+`<execution_context>`; if GSD ever changes that template, the guard stops recognising commands and
+allows — fail-open, silently, which is why `guard.test.ts` carries a captured payload as a fixture.
+A session whose prompt the plugin never saw is allowed, because a late-loaded plugin and a resumed
+session look the same as an honest one. A subagent's commits are trusted on its `gsd-` name alone.
+The guard is an authoring discipline, not a security control: `sh -c`, an alias or a script is out
+of its reach.
 
 ## Build logic
 

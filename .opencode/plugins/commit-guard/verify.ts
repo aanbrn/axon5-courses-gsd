@@ -23,6 +23,11 @@ const CASES: readonly Case[] = [
     prompt: '/gsd-quick verify the guard',
   },
   {
+    name: 'an expanded GSD command prompt',
+    expected: 'allow',
+    prompt: '<execution_context>\n@/p/.opencode/gsd-core/workflows/fast.md\n</execution_context>',
+  },
+  {
     name: 'gsd-executor subagent',
     expected: 'allow',
     agent: 'gsd-executor',

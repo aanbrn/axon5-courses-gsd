@@ -5,6 +5,32 @@ import type { GuardInput, Verdict } from './guard.ts';
 
 const SESSION = 'session-1';
 
+/**
+ * Captured from a live session on OpenCode 2.2.7: this is what the prompt hook receives for
+ * `/gsd-fast probe the prompt payload`. The command name survives only as the workflow path.
+ */
+const EXPANDED_GSD_PROMPT = `<arguments>probe the prompt payload</arguments>
+
+The text inside \`<arguments>\` is exactly what the user typed after the command name.
+
+<objective>
+Execute a trivial task directly in the current context without spawning subagents.
+</objective>
+
+<execution_context>
+@/Users/someone/project/.opencode/gsd-core/workflows/fast.md
+</execution_context>
+
+<process>
+Execute end-to-end.
+</process>`;
+
+/** The same shape with the workflow reference removed: a long request, not a command. */
+const LOOKS_EXPANDED_BUT_IS_NOT = EXPANDED_GSD_PROMPT.replace(
+  '@/Users/someone/project/.opencode/gsd-core/workflows/fast.md',
+  '',
+);
+
 /** Every form the token walk must recognise as a real commit. */
 const COMMITS = [
   'git commit -m "feat: the thing"',
@@ -76,6 +102,14 @@ function assertRefusal(verdict: Verdict): void {
 
 test('allows a commit while a GSD command is active', () => {
   assert.equal(verdictFor('/gsd-quick fix the flaky test').decision, 'allow');
+});
+
+test('allows a commit under a command the runtime expanded before the hook saw it', () => {
+  assert.equal(verdictFor(EXPANDED_GSD_PROMPT).decision, 'allow');
+});
+
+test('refuses a long request that carries the tags but no workflow reference', () => {
+  assertRefusal(verdictFor(LOOKS_EXPANDED_BUT_IS_NOT));
 });
 
 test('allows a commit from a gsd- subagent, which never receives a prompt', () => {

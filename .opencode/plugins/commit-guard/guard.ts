@@ -10,8 +10,16 @@
  * the OpenCode runtime. `index.ts` only registers hooks and hands their events to these functions.
  */
 
-/** A typed slash command is the only signal that a GSD workflow started. */
+/** A runtime that hands the hook the raw input: the text starts with the command. */
 const GSD_COMMAND = /^\s*\/(gsd-[a-z0-9-]+)/;
+
+/**
+ * OpenCode expands a slash command before the prompt hook sees it. What arrives is the command
+ * template body — no `/gsd-` anywhere — and the only stable trace of which command ran is the
+ * workflow file it references inside `<execution_context>`. Measured on 2.2.7 with a captured
+ * payload; see the fixture in `guard.test.ts`.
+ */
+const EXPANDED_COMMAND = /<execution_context>[\s\S]*?gsd-core\/workflows\/([a-z0-9-]+)\.md/;
 
 /** Matches the OpenCode 2.x shell tool id as well as the older `bash` one. */
 const SHELL_TOOL_IDS = new Set(['bash', 'shell']);
@@ -55,11 +63,17 @@ export function createState(): GuardState {
   return { active: new Map(), seen: new Set(), reported: false };
 }
 
-/** A GSD prompt records the command; any other prompt clears it. Either way the session is now known. */
+/**
+ * A GSD prompt records the command — raw or expanded — and any other prompt clears it. Either way
+ * the session is now known.
+ */
 export function recordPrompt(state: GuardState, sessionID: string, promptText: string): void {
-  const match = GSD_COMMAND.exec(promptText);
+  const raw = GSD_COMMAND.exec(promptText);
+  const expanded = raw ? null : EXPANDED_COMMAND.exec(promptText);
   state.seen.add(sessionID);
-  if (match) state.active.set(sessionID, match[1]);
+
+  if (raw) state.active.set(sessionID, raw[1]);
+  else if (expanded) state.active.set(sessionID, expanded[1]);
   else state.active.delete(sessionID);
 }
 
