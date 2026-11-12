@@ -471,6 +471,26 @@ drift.
 The `title` check lives in `.github/workflows/pr-title.yml` and enforces the conventional-commit
 format on pull request titles, because the squash commit in `main` takes the PR title.
 
+### Branch protection
+
+`main` is protected by five repository rulesets rather than by a file in the tree, so the policy
+lives in Settings → Rules and changes through the API:
+
+| Ruleset                       | Rule                                                                              |
+| ----------------------------- | --------------------------------------------------------------------------------- |
+| `main-require-pr-on-merge`    | PR required, squash only, no approval needed, conversations must be resolved      |
+| `main-required-checks`        | `build`, `format` and `title`, strict — the branch must be up to date with `main` |
+| `main-require-linear-history` | no merge commits                                                                  |
+| `main-restrict-deletions`     | `main` cannot be deleted                                                          |
+| `main-block-force-pushes`     | no force-push, except the owner's explicit bypass                                 |
+
+A direct push to `main` is rejected even for the owner: the PR and checks rules have no bypass. The
+force-push bypass remains the single escape hatch for repairing history, and required checks still
+apply to the rewritten commits.
+
+Change a rule with `gh api -X PUT repos/{owner}/{repo}/rulesets/{id} --input ruleset.json`. Classic
+branch protection is not used; the two mechanisms must not run side by side.
+
 Pull requests start from `.github/pull_request_template.md`: summary, change type, decisions and
 trade-offs, deliberate exclusions, the local checks and a test plan.
 

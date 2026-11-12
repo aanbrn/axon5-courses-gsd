@@ -50,6 +50,7 @@ The rules that keep the topology honest:
 - The PR title becomes the squash commit in `main`, so it must follow the same format; CI enforces it (`pr-title` workflow).
 - Pull requests use `.github/pull_request_template.md`: summary, change type, decisions and trade-offs, deliberate exclusions, the local checks and a test plan.
 - One logical change per commit; planning artifacts commit alongside the work they describe.
+- The agent commits, pushes, opens a pull request or merges one only when the current message asks for that action. An earlier agreement covers the action it approved, not the next one, so ask again before each.
 
 ## Review
 
@@ -72,8 +73,9 @@ reader; style preferences are not findings.
 
 ## Branching
 
-- One branch per phase: `gsd/phase-{phase}-{slug}` (config template), merged into `main` through a pull request.
-- `main` is protected: no direct pushes, no force-push, no deletion, `build`, `format` and `title` checks required, conversation resolution required.
+- One branch per change: `gsd/phase-{phase}-{slug}` for a phase (config template), a conventional name such as `chore/dependabot-title-and-node-types` for tooling work. Every branch reaches `main` through a pull request.
+- `main` is protected by five GitHub rulesets, not by a file in the repository: `main-require-pr-on-merge` (PR required, squash only, no approval needed, conversations resolved), `main-required-checks` (`build`, `format` and `title`, strict — the branch must be up to date with `main`), `main-require-linear-history`, `main-restrict-deletions` and `main-block-force-pushes`.
+- The owner may bypass `main-block-force-pushes` only. The PR and checks rules carry no bypass, so a direct push to `main` is rejected for the owner too; the force-push escape hatch exists to repair history and still has to pass the checks anew.
 - PR titles follow the same conventional-commit format as commits — the squash commit in `main` takes the PR title and body.
 - Only squash merges are allowed; the branch is deleted after merge.
 
