@@ -40,7 +40,7 @@ Every line below was re-read at the cited line on 2026-11-12.
 | #   | Claim                                                                                                                                                                                      | Evidence                                                                                                                                                                                                                                  |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | C1  | The advisory hardcodes the colon form.                                                                                                                                                     | `hooks/gsd-workflow-guard.js:369` ("Consider using /gsd:fast ... or /gsd:quick ..."); the same form in the header comment at `:8` ("nudges Claude to use /gsd:quick or /gsd:fast")                                                        |
-| C2  | The core renders and reuses the runtime-correct form.                                                                                                                                      | `bin/lib/runtime-slash.cjs:11-17`, `:43` (`formatGsdSlash`), `:228` (`formatGsdSlashFor`); `bin/lib/profile-output.cjs:202-217`; `bin/lib/runtime-artifact-conversion.cjs:492`, `:3207`                                                   |
+| C2  | The core renders and reuses the runtime-correct form.                                                                                                                                      | `bin/lib/runtime-slash.cjs:11-17`, `:43` (`formatGsdSlash`, returning the hyphen form at `:81`), `:228` (`formatGsdSlashFor`); `bin/lib/profile-output.cjs:202-217`; `bin/lib/runtime-artifact-conversion.cjs:492`, `:3207`               |
 | C3  | The hook does not use that helper, and its literal is the form that module calls legacy.                                                                                                   | `grep -n 'formatGsdSlash\|runtime-slash' .opencode/hooks/gsd-workflow-guard.js` returns no match (exit 1); `hooks/gsd-workflow-guard.js:8`, `:369` carry the literal; `bin/lib/runtime-slash.cjs:11-15` ("no longer routable")            |
 | C4  | Prior art: #376 reports the same class of defect; it is closed as COMPLETED on 2026-05-28 and its body scopes it to Claude Code hook files. This report does not claim that a fix shipped. | #376, CLOSED / COMPLETED on 2026-05-28 ("Hook source files (.js) skipped by /gsd: → /gsd- rewriter — colon namespace leaks into ... workflow-guard messages on Claude Code installs"); the literal is still present in 1.20.1's hook (C1) |
 
@@ -86,7 +86,9 @@ On OpenCode the workflow advisory contains:
   (hooks/gsd-workflow-guard.js:369)
 
 That is the legacy namespace. bin/lib/runtime-slash.cjs:11-15 records that installs register under
-the hyphen form and that the colon form "is no longer routable by Claude Code skill installs".
+the hyphen form and that the colon form "is no longer routable by Claude Code skill installs" - a
+statement about Claude Code installs, which is why the fix belongs in the helper rather than in one
+hook's literal.
 
 The install ships commands/gsd-fast.md and commands/gsd-quick.md, and those files refer to themselves
 as /gsd-fast (commands/gsd-fast.md:24) and /gsd-quick (commands/gsd-quick.md:130) — the hyphen form the
