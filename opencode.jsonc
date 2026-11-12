@@ -6,13 +6,14 @@
   //
   // Secrets come from the environment, never from this file:
   //   "environment": { "MCP_API_KEY": "{env:MCP_API_KEY}" }
-  // Commits and pushes are human decisions, not agent decisions. The patterns match the
-  // command string, so a bare `git commit ...` is what triggers the prompt; keep Git
-  // commands as their own tool call instead of chaining them behind `cd && ...`.
+  // Pushes are human decisions. Commits are not: one GSD task makes several of them, so a
+  // prompt on each only teaches approving without reading, and the individual commits are
+  // squashed away on merge. The rule stays explicit here because the global config carries
+  // the same `ask` and this entry is what overrides it.
   "permission": {
     "bash": {
       "*": "allow",
-      "git commit *": "ask",
+      "git commit *": "allow",
       "git push *": "ask"
     }
   },
