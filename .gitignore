@@ -31,6 +31,11 @@ yarn-error.log*
 !.opencode/commands/
 .opencode/commands/*
 !.opencode/commands/setup-tooling.md
+!.opencode/plugins/
+.opencode/plugins/*
+!.opencode/plugins/phase-session-title/
+!.opencode/plugins/phase-session-title/**
+.opencode/plugins/phase-session-title/node_modules/
 
 # Secrets and machine-specific config
 .env
