@@ -14,9 +14,12 @@
 ## Summary
 
 `AGENTS.md` asks the agent not to edit files outside a GSD workflow. `hooks.workflow_guard` is off
-by default and, when enabled, emits an advisory for a top-level edit and lets the edit proceed. The
-config schema names no key that enforces workflow entry. The report asks either for an opt-in
-blocking mode or for the option to be labelled advisory-only.
+by default and, when enabled, returns an advisory rather than a block for a top-level edit. Nothing
+in the config schema's key list names an enforcement setting, so the generated instruction is the
+only place the rule appears. The report asks either for an opt-in blocking mode or for the option to
+be labelled advisory-only.
+
+The claim is what the schema lists, not a proof that no mechanism exists anywhere in the framework.
 
 ## Claims and evidence
 
