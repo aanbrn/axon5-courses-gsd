@@ -6,6 +6,17 @@
   //
   // Secrets come from the environment, never from this file:
   //   "environment": { "MCP_API_KEY": "{env:MCP_API_KEY}" }
+  // Commits and pushes are human decisions, not agent decisions. The patterns match the
+  // command string, so a bare `git commit ...` is what triggers the prompt; keep Git
+  // commands as their own tool call instead of chaining them behind `cd && ...`.
+  "permission": {
+    "bash": {
+      "*": "allow",
+      "git commit *": "ask",
+      "git push *": "ask"
+    }
+  },
+
   "mcp": {
     "servers": {
       // Browser automation for frontend verification. Headless so it works in CI
