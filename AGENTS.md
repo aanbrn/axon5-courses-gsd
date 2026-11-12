@@ -257,37 +257,15 @@ A small course-enrollment application built to explore Axon Framework 5's Dynami
 - Pull requests use `.github/pull_request_template.md`: summary, change type, decisions and trade-offs, deliberate exclusions, the local checks and a test plan.
 - One logical change per commit; planning artifacts commit alongside the work they describe.
 
-## Review loop (planning artifacts)
+## Review
 
-### When it runs
-
-- Any substantial change to `PROJECT.md`, `REQUIREMENTS.md`, `ROADMAP.md`, `research/*`, or this file.
-- The loop completes before a human is asked to read the artifact.
-
-### Rounds
-
-- **Round 1:** three reviewers in parallel, read-only — consistency, requirements/roadmap quality, technical fact-check.
-- **Round 2+:** one consistency reviewer plus only the specialist whose domain still has open findings.
-- Later rounds review the diff since the previous round and its cross-file consequences; only round 1 re-reads the whole corpus.
-- Findings are classified `blocker`, `major`, `minor`.
-
-### Exit criteria
-
-- zero open `blocker` and `major`;
-- the round's finding count is not greater than the previous round's;
-- no finding closed in an earlier round is reopened.
-
-### Convergence control
-
-- **Hard cap: 3 rounds.** A round 3 with open blockers or majors freezes the documents and escalates to the human with the open list; a fourth round needs an explicit human decision.
-- **Oscillation stop:** a reopened finding, or two findings prescribing opposite fixes, ends the loop and becomes a decision recorded in `PROJECT.md` Key Decisions.
-- **Diminishing-returns stop:** a round producing only minor findings ends the loop; minors are recorded, not fixed by default.
-- **Reviewer bar:** reviewers report only defects that would change implementation or mislead a reader; style preferences are not findings.
-
-### Recording
-
-- Every round appends to `.planning/PLANNING-REVIEW.md`: round number, reviewers, counts by severity, status per finding.
-- Acceptance marks the artifact reviewed; a later change touching more than one file or any constraint starts a new round 1.
+| Artifact | Command |
+|----------|---------|
+| Phase plan (`PLAN.md`) | `/gsd-review <phase>` — cross-AI peer review through `codex` and `claude`, written to `REVIEWS.md`, fed back with `--reviews` |
+| Plan convergence | `/gsd-plan-review-convergence <phase>` — plan → review → replan until no HIGH concerns remain, three cycles by default; enabled through `workflow.plan_review_convergence` |
+| Phase code | `/gsd-code-review <phase>` — findings land in `REVIEW.md`, `--fix` applies them |
+| Documentation claims | `/gsd-docs-update` — its `gsd-doc-verifier` checks claims against the codebase |
+| Milestone | `/gsd-audit-milestone` — audits completion against the original intent |
 ## Branching
 
 - One branch per phase: `gsd/phase-{phase}-{slug}` (config template), merged into `main` through a pull request.

@@ -4,6 +4,12 @@ Three independent reviewers audited the draft plan before human review: consiste
 
 > **Historical note.** Entries from rounds 1–2 that mention ten phases, `projection`, `query`, `command` or `api-gateway` describe the state at that time. The current shape is three services (`courses-write`, `courses-read`, `courses-api`), six modules and eleven phases.
 
+> **This file is history.** It records two manual review cycles that ran before the project moved to
+> GSD's review commands. The current procedure is in `.planning/codebase/CONVENTIONS.md` § Review:
+> `/gsd-review` and `/gsd-plan-review-convergence` for plans, `/gsd-code-review` for code,
+> `/gsd-docs-update` for documentation claims, `/gsd-audit-milestone` for a milestone. Nothing here
+> is a loop to re-run.
+
 **Totals:** round 1 — 68 findings (9 blockers, 35 major, 24 minor); round 2 consistency — 27 (4/13/10); round 2 technical — 7 (2 major, 5 minor). Round 3 (full re-review) — 33 findings (2 blockers, 24 majors, 7 minors). Round 4 (verification) — 24 findings (2 blockers, 16 majors, 6 minors). Total 159 findings.
 
 Status: **round 4 verification found 2 blockers and 16 majors**, all documentary leftovers from the renames and the service merge; they are being fixed in the current pass. One major is accepted by design (`RQ-06`, VIEW-01/AUTH-02 kept separate). Earlier rounds' earlier statuses are historical, not current claims.
