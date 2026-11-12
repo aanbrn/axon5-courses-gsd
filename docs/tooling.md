@@ -307,6 +307,57 @@ opencode session delete <id>        # remove the throwaway session
 the type check and the IDE's TypeScript service can see the hook API; the runtime loads the plugin
 with its own copy. Bump the pin together with OpenCode.
 
+## Commit guard
+
+`git commit` runs only inside a GSD command. The `commit-guard` plugin under `.opencode/plugins/`
+enforces that with nothing to approve:
+
+- on prompt admission it records the session's GSD command when the prompt starts with one, and
+  clears the record for any other prompt;
+- before every shell tool call it decides whether the command is a commit, and refuses when it is
+  and neither allow condition holds.
+
+A commit is allowed in exactly two cases: the session's latest prompt typed a GSD command, or the
+call comes from a `gsd-*` subagent — subagents never receive a prompt, so their agent name is the
+signal. A refusal names the command to type instead, `/gsd-quick`, `/gsd-fast` or
+`/gsd-execute-phase`, rather than only reporting that the call was denied.
+
+The detector is a token walk, not a substring. `git -C <path> commit`, `NAME=value git commit`,
+`/usr/bin/git commit`, `true && git commit` and `git add . ; git commit` are all commits, while
+`git commit --dry-run`, `git commit --help`, `git commit-tree`, `git log --grep commit` and
+`echo "git commit"` are not. Every other bash command, and every other tool, passes unchanged.
+
+Why it exists: the per-commit permission prompt was removed because it fired on every task commit
+and taught approving without reading — `opencode.jsonc` records that decision. Removing it also
+removed the only distinction worth keeping, a commit made by a workflow versus one made arbitrarily,
+and this plugin restores it without a prompt.
+
+The escape hatch is one environment variable, for a session that needs it:
+
+```bash
+COMMIT_GUARD=off opencode
+```
+
+Deleting `.opencode/plugins/commit-guard/` is the durable off switch.
+
+Verify it at three levels:
+
+```bash
+npm --prefix .opencode/plugins/commit-guard test         # the detection table, node:test
+npm --prefix .opencode/plugins/commit-guard run typecheck # the hooks against @opencode/plugin
+npm --prefix .opencode/plugins/commit-guard run verify    # four verdicts, printed
+```
+
+CI runs the first after the formatting gate. The hooks need the OpenCode server, so after editing
+`index.ts` reload the plugins (`/reload`) and check one decision by hand: a plain prompt asking for
+a commit must be refused with `/gsd-quick` in the message, and the same commit under `/gsd-quick`
+must land.
+
+The honest limit is the signal itself. Prompt text is the only evidence that a command started, so a
+session that never received the command prompt — a resumed session, a message typed mid-command —
+cannot commit, and a subagent's commits are trusted on its `gsd-` name alone. The guard is an
+authoring discipline, not a security control: `sh -c`, an alias or a script is out of its reach.
+
 ## Build logic
 
 Shared build configuration lives in the `build-logic` included build, not in the module scripts:

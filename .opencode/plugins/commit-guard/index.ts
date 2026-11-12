@@ -7,6 +7,10 @@ import { createState, decideSafely, recordPromptSafely } from './guard.ts';
 export default Plugin.define({
   id: 'commit-guard',
   async setup(ctx) {
+    // The escape hatch belongs to the owner and needs no code change: one environment variable
+    // skips the guard for the session. Removing the directory stays the durable switch.
+    if (process.env.COMMIT_GUARD === 'off') return;
+
     // One record per session: a GSD prompt sets it, any other prompt clears it.
     const state = createState();
 
