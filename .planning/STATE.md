@@ -4,10 +4,10 @@ current_phase: 2
 current_phase_name: Session and message path
 status: planning
 stopped_at: Completed 01-06-PLAN.md
-last_updated: "2026-11-11T00:36:41.787Z"
-last_activity: 2026-11-11
-last_activity_desc: "Completed 01-06: Playwright MCP headless proof and the local run-loop docs; Phase 1 verified 7/7"
-state_head: cd021657e46e3116b6bc82fbe5cf03a4231e734f
+last_updated: "2026-11-12T04:16:16.746Z"
+last_activity: 2026-11-12
+last_activity_desc: "Extracted the Phase 1 learnings and the estimation calibration; the health-indicator mechanics moved into the architecture notes"
+state_head: b822e96
 progress:
   total_phases: 11
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-10)
 Phase: 2 of 11 (Session and message path) — NOT STARTED
 Plan: 0 of TBD
 Status: Ready to plan
-Last activity: 2026-11-11 — Completed 01-06: Playwright MCP headless proof and the local run-loop docs; Phase 1 verified 7/7
+Last activity: 2026-11-12 — Extracted the Phase 1 learnings and the estimation calibration; the health-indicator mechanics moved into the architecture notes
 
 Progress: [█░░░░░░░░░] 9%
 

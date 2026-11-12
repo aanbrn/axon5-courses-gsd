@@ -421,9 +421,9 @@ use `${PROJECT_VERSION:-<project.version>}`; infrastructure tags may be pinned o
 `${AXONSERVER_VERSION:-...}` / `${POSTGRES_VERSION:-...}`, and the effective tag must match the
 version catalog.
 
-Registration is asserted inside the applications, never by scraping `/actuator/health`: this starter
-combination registers no Axon health indicator, so a green health endpoint says nothing about the
-Axon connection. To prove registration, run
+Registration is asserted inside the applications, never by scraping `/actuator/health` — why the
+indicator is weaker evidence than it looks is recorded in `.planning/codebase/ARCHITECTURE.md` §
+Health and registration. To prove registration, run
 
 ```bash
 ./gradlew integrationTest --tests '*AxonServerRegistrationIT'
