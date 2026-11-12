@@ -1,14 +1,20 @@
 name: CI
 
 on:
+  # Branch pushes are covered by the pull_request event; only main needs a post-merge run.
   push:
     branches:
       - main
-      - 'feature/**'
-      - 'gsd/**'
   pull_request:
     branches:
       - main
+    # `ready_for_review` re-runs CI when a draft is marked ready, so the integration step
+    # that a draft skipped actually executes before merge.
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
 
 permissions:
   contents: read
@@ -45,24 +51,30 @@ jobs:
         with:
           node-version: '24.20.0'
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: courses-frontend/package-lock.json
 
-      # Compose, not `services:` — one source of truth for the image tags.
-      - name: Start infrastructure
-        run: docker compose up -d --wait
+      # `check` lints the workflows with actionlint; pin the binary and verify its checksum.
+      - name: Install actionlint
+        env:
+          ACTIONLINT_VERSION: '1.7.12'
+          ACTIONLINT_SHA256: '8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8'
+        run: |
+          asset="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -fsSLo "$RUNNER_TEMP/$asset" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/$asset"
+          echo "${ACTIONLINT_SHA256}  $RUNNER_TEMP/$asset" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$asset" -C "$RUNNER_TEMP" actionlint
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
       # Docker-free on purpose: the integration test is a separate task, so a
       # local `./gradlew build` never needs a running server.
       - name: Build and unit test
         run: ./gradlew build --no-daemon
 
+      # The suites own their infrastructure: Testcontainers starts Axon Server
+      # and PostgreSQL per run on random ports and removes them afterwards, so
+      # no Compose stack is started here. Images are built locally, and in CI only by the Phase 8 e2e job.
       - name: Integration tests (Axon Server + PostgreSQL)
+        # Draft PRs skip the container-backed suites; the build and unit tests still run.
+        if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
         run: ./gradlew integrationTest --no-daemon
-
-      - name: Infrastructure logs
-        if: failure()
-        run: docker compose logs --no-color
-
-      - name: Stop infrastructure
-        if: always()
-        run: docker compose down -v --remove-orphans
