@@ -117,6 +117,79 @@ What is committed instead, so the project still carries its rules and context wi
 - `.planning/` — project context, requirements, roadmap, research, review record
 - `.github/workflows/` — CI
 
+## Model selection
+
+GSD decides which model each subagent runs on; OpenCode just executes the resolved id. The layers,
+highest precedence first:
+
+1. `model_overrides.<agent>` — one agent, a full model id.
+2. `models.<phase-type>` — `planning`, `research`, `execution`, `verification`, `discuss`.
+3. `model_profile` — a per-agent tier table (`quality`, `balanced`, `budget`, `adaptive`,
+   `inherit`).
+4. The runtime default.
+
+Steps 2–4 pick a **tier** (`opus`, `sonnet`, `haiku`); `model_profile_overrides.opencode` maps that
+tier to a concrete `opencode-go` model. This project runs `balanced`, so planning gets the strongest
+tier and everything else the working tier:
+
+| Tier     | Model                             | Used for                                                                      |
+| -------- | --------------------------------- | ----------------------------------------------------------------------------- |
+| `opus`   | `opencode-go/deepseek-v4-pro`     | `gsd-planner`                                                                 |
+| `sonnet` | `opencode-go/deepseek-v4.1-flash` | executor, researchers, document agents, `gsd-verifier` and the other checkers |
+| `haiku`  | `opencode-go/claude-haiku-5-5`    | `gsd-codebase-mapper` and other fan-out work                                  |
+
+`resolve_model_ids` is `true`, so a tier becomes the full id above; the global
+`~/.gsd/defaults.json` also sets it, but the project config wins and GSD says so on every
+`resolve-model` call.
+
+### Cost
+
+Two kinds of spending meet here, and they are not interchangeable:
+
+- **subscription-backed** — the `codex` CLI and the `openai/*` provider both run under the ChatGPT
+  subscription (the provider authenticates through OAuth, not an API key), and `opencode-go` covers
+  the DeepSeek and GLM models. Using them adds no per-token charge.
+- **metered** — `opencode/*` bills per token. Claude and Gemini live only there, with no
+  subscription behind them, which is why they are not in the defaults.
+
+Defaults therefore stay on the subscription side: `codex` for review, `opencode-go/glm-5.3` for the
+second reviewer, `openai/gpt-6.1-sol` for the two gates that must not share a family with what they
+check (`gsd-code-reviewer` and `gsd-plan-checker`), DeepSeek for planning, execution and
+verification.
+
+GPT therefore appears twice on an artifact — once as a gate and once as the `codex` review lane —
+while GLM carries only the second lane. The gate is the place where strength matters more than the
+symmetry of the family count, so the assignment is deliberate. If the ChatGPT quota becomes the
+binding constraint, both overrides move back to `opencode-go/glm-5.3` at no cost.
+
+A lane is a CLI, not a model, so two reviewers need two binaries: `codex` and `opencode`. If the
+Codex CLI is unavailable or hits its subscription limit, the fallback is the same GPT model through
+the other binary — `review.models.opencode: openai/gpt-6.1-sol` — not a metered provider. GLM then
+drops out for that invocation, since one lane carries one model.
+
+### Review lanes
+
+Cross-AI review runs through external CLIs, not through the subagents above. Two lanes, from two
+different model families:
+
+| Lane       | Binary     | Model                 | Effort | Family                                     |
+| ---------- | ---------- | --------------------- | ------ | ------------------------------------------ |
+| `codex`    | `codex`    | `gpt-6.1-sol`         | `high` | OpenAI                                     |
+| `opencode` | `opencode` | `opencode-go/glm-5.3` | `high` | Zhipu (through the `opencode-go` provider) |
+
+Both values are pinned in `.planning/config.json` (`review.models.<lane>`, `review.effort.<lane>`),
+so the review does not drift with whatever the CLIs' own configurations hold. The catch: a renamed
+or retired model id is not tracked by anything — the lane fails loudly when the CLI rejects it.
+
+The families matter more than the model names. Planning runs on `deepseek-v4-pro` and execution on
+`deepseek-v4.1-flash`, so a reviewer on either DeepSeek model would be reviewing its own work; GLM
+and GPT are both outside that lineage, which is what makes the pair adversarial. On OpenCode 2.x the
+`opencode` lane rejects `--variant`, so the effort rides on the model reference (`…/glm-5.3#high`)
+and the prompt is fed with `--standalone` — GSD applies that translation itself.
+
+Adding a third lane for one invocation is a flag (`/gsd-review <phase> --claude`, `--all`); an
+unusable lane named explicitly fails the review instead of being skipped.
+
 ## MCP servers
 
 There are two levels, and the choice is not stylistic — it follows from what the server needs:

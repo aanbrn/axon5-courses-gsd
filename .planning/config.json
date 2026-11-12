@@ -1,5 +1,5 @@
 {
-  "model_profile": "adaptive",
+  "model_profile": "balanced",
   "model_profile_overrides": {
     "opencode": {
       "opus": "opencode-go/deepseek-v4-pro",
@@ -96,7 +96,7 @@
     "source_grounding": true,
     "source_grounding_authority": "grep"
   },
-  "resolve_model_ids": "omit",
+  "resolve_model_ids": true,
   "mode": "yolo",
   "granularity": "fine",
   "features": {
@@ -105,7 +105,19 @@
   "review": {
     "default_reviewers": [
       "codex",
-      "claude"
-    ]
+      "opencode"
+    ],
+    "models": {
+      "codex": "gpt-6.1-sol",
+      "opencode": "opencode-go/glm-5.3"
+    },
+    "effort": {
+      "codex": "high",
+      "opencode": "high"
+    }
+  },
+  "model_overrides": {
+    "gsd-code-reviewer": "openai/gpt-6.1-sol",
+    "gsd-plan-checker": "openai/gpt-6.1-sol"
   }
 }
