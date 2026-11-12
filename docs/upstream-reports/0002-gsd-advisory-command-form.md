@@ -98,9 +98,8 @@ The core already renders the runtime-correct form: formatGsdSlash() at bin/lib/r
 wrapped for a project by formatGsdSlashFor() at :228, used by the instruction-file generator
 (bin/lib/profile-output.cjs:202-217) — which is where AGENTS.md:429-432 gets its /gsd-fast,
 /gsd-quick, /gsd-debug and /gsd-execute-phase names. The body rewriter normalises /gsd:<cmd> to the
-hyphen form (bin/lib/runtime-artifact-conversion.cjs:492), and the OpenCode skill writer reuses that
-converter (:3207). The hook carries the literal instead: grep for formatGsdSlash or runtime-slash in
-hooks/gsd-workflow-guard.js returns nothing.
+hyphen form (bin/lib/runtime-artifact-conversion.cjs:492). The hook carries the literal instead:
+grep for formatGsdSlash or runtime-slash in hooks/gsd-workflow-guard.js returns nothing.
 
 Reproduction — run from a checkout with the package installed; H is the absolute, quoted path to the
 installed hook, which sits beside gsd-core/, not inside it:
