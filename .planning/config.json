@@ -98,7 +98,7 @@
     "source_grounding_authority": "grep"
   },
   "resolve_model_ids": true,
-  "mode": "yolo",
+  "mode": "interactive",
   "granularity": "fine",
   "features": {
     "global_learnings": true
