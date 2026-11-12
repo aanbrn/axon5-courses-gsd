@@ -349,6 +349,18 @@ A small course-enrollment application built to explore Axon Framework 5's Dynami
 - `.opencode/` is generated and gitignored. Only hand-written project commands under `.opencode/commands/` are tracked, each with an explicit unignore line in `.gitignore`; never hand-edit the generated `opencode.json`.
 - Project MCP servers belong in the tracked root `opencode.jsonc` under `mcp.servers`; secrets use `{env:NAME}`. Auth- or IDE-bound servers (GitHub via `gh mcp`, IntelliJ) belong in the user's global config instead — the `connect-mcp-servers` skill detects, installs and wires them, handing back only the steps a human must do.
 - `docs/tooling.md` is the human-facing version of these rules.
+
+## Upstream reports
+- **The register, the gate and the file format live in `docs/upstream-reports/`.** The rules below say what may be published; that directory says where it is recorded and how it is reviewed.
+- **A deficiency in a dependency is reported upstream, not only worked around.** When a dependency's behaviour contradicts its documentation, a published release is unusable, or the tooling lacks a capability this project needs, the finding is reported to the dependency's own repository — resolved from its package metadata, never guessed. The threshold is "it changed how this project worked, or would change it for anyone walking the same path"; a typo in a log line is not a report, a wrong claim about a health indicator is.
+- **The report is evidence, not a complaint.** Exact version, the file and line in the dependency's source, observed versus expected behaviour, and the smallest reproduction available. A maintainer cannot fix what they cannot reproduce.
+- **Record before reporting.** The finding lands in `docs/upstream-reports/` — one file per report plus a row in its register — inside the same task that found it, so the knowledge survives even if the report is never filed.
+- **Three passes, on the exact text that will be sent.** The draft is committed before it is filed, so it can be diffed, reviewed, and later compared with what was actually said. Evidence: every behavioural claim maps to a `file:line` at the reported version and is re-read at review time, never recalled. Independent: the draft and the cited sources go to the codex lane configured under `review`, which returns supported / unsupported / speculative per claim, plus tone and duplicate risk. Owner: the owner reads the committed file in full and approves that text, not a summary of it.
+- **Publication blockers.** An unverified claim, a missing or untested version, a local path, hostname, username, token, internal URL or unpublished design in the text, speculation about a maintainer's intent, an unchecked duplicate, or an approval given to a paraphrase rather than to the file.
+- **The voice is the owner's; the facts are the project's.** No first-hand experience the project cannot support and no invented production usage. AI assistance is disclosed in one line, unless the owner records a different decision in the register row.
+- **Filing is an operation outside this repository.** The draft is prepared inside the task; the report is opened only on an explicit request, like a push or a merge.
+- **Re-check the register when a dependency is bumped.** A row closes when the fixed version is adopted; until then a local workaround carries a pointer to it.
+
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->
