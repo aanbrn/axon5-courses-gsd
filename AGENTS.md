@@ -256,7 +256,7 @@ A small course-enrollment application built to explore Axon Framework 5's Dynami
 - The PR title becomes the squash commit in `main`, so it must follow the same format; CI enforces it (`pr-title` workflow).
 - Pull requests use `.github/pull_request_template.md`: summary, change type, decisions and trade-offs, deliberate exclusions, the local checks and a test plan.
 - One logical change per commit; planning artifacts commit alongside the work they describe.
-
+- The agent commits, pushes, opens a pull request or merges one only when the current message asks for that action. An earlier agreement covers the action it approved, not the next one, so ask again before each.
 ## Review
 
 | Artifact | Command |
