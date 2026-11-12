@@ -309,13 +309,14 @@ with its own copy. Bump the pin together with OpenCode.
 
 ## Commit guard
 
-`git commit` runs only inside a GSD command. The `commit-guard` plugin under `.opencode/plugins/`
-enforces that with nothing to approve:
+`git commit` is refused unless a GSD command is active, the call comes from a `gsd-*` subagent, or
+the session never reported a prompt. The `commit-guard` plugin under `.opencode/plugins/` enforces
+that with nothing to approve:
 
 - on prompt admission it records the session's GSD command when the prompt starts with one, and
-  clears the record for any other prompt;
+  clears the record for any other prompt; either way the session is then known;
 - before every shell tool call it decides whether the command is a commit, and refuses when it is
-  and neither allow condition holds.
+  and none of the three allow conditions holds.
 
 A commit is allowed in three cases: the session's latest prompt typed a GSD command; the call comes
 from a `gsd-*` subagent — subagents never receive a prompt, so their agent name is the signal; or
@@ -348,7 +349,7 @@ Verify it at three levels:
 ```bash
 npm --prefix .opencode/plugins/commit-guard test         # the detection table, node:test
 npm --prefix .opencode/plugins/commit-guard run typecheck # the hooks against @opencode/plugin
-npm --prefix .opencode/plugins/commit-guard run verify    # four verdicts, printed
+npm --prefix .opencode/plugins/commit-guard run verify    # five verdicts, printed
 ```
 
 CI runs the first after the formatting gate. The hooks need the OpenCode server, so after editing
