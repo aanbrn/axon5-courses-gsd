@@ -1,17 +1,18 @@
 # 0002 — Comment for #6054: installed hook scripts as an artifact class
 
-|            |                                                                      |
-| ---------- | -------------------------------------------------------------------- |
-| Type       | Comment on an open maintenance task, not a new issue                 |
-| Target     | [#6054](https://github.com/open-gsd/gsd-core/issues/6054)            |
-| Role       | Observation: one artifact class the task does not name               |
-| Dependency | `@opengsd/gsd-core`                                                  |
-| Version    | 1.20.1                                                               |
-| Ecosystem  | npm                                                                  |
-| Upstream   | https://github.com/open-gsd/gsd-core                                 |
-| Status     | `not filed`                                                          |
-| Disclosure | Drafted with assistance from an AI agent and reviewed before filing. |
-| Found      | 2026-11-12                                                           |
+|            |                                                                                                          |
+| ---------- | -------------------------------------------------------------------------------------------------------- |
+| Type       | Comment on an open maintenance task, not a new issue                                                     |
+| Target     | [#6054](https://github.com/open-gsd/gsd-core/issues/6054)                                                |
+| Role       | Observation: one artifact class the task does not name                                                   |
+| Dependency | `@opengsd/gsd-core`                                                                                      |
+| Version    | 1.20.1                                                                                                   |
+| Ecosystem  | npm                                                                                                      |
+| Upstream   | https://github.com/open-gsd/gsd-core                                                                     |
+| Status     | `filed`                                                                                                  |
+| Posted     | [comment on #6054](https://github.com/open-gsd/gsd-core/issues/6054#issuecomment-6817493618), 2026-11-12 |
+| Disclosure | Drafted with assistance from an AI agent and reviewed before filing.                                     |
+| Found      | 2026-11-12                                                                                               |
 
 ## Why a comment here, not a new issue
 
@@ -72,7 +73,7 @@ Drafted with assistance from an AI agent and reviewed before filing.
 | Independent (comment #1) | HOLD — claimed the hooks bundle was outside the manifest, which `gsd-file-manifest.json` contradicts; implied a registration claim; promised what the checker would do; named the wrong helper | 2026-11-12 |
 | Independent (comment #2) | HOLD — "ready-made fixture" and "unrewritten token" assumed a required conversion the draft cannot prove; the discovery narrative is unverifiable                                              | 2026-11-12 |
 | Independent (comment #3) | POST — every claim supported, scope bounded, placement accepted, no OpenCode defect claimed                                                                                                    | 2026-11-12 |
-| Owner                    | pending — reads the committed file before anything is posted                                                                                                                                   | —          |
+| Owner                    | approved and posted on 2026-11-12; the posted body matches the fence above, with only the trailing newline GitHub adds                                                                         | 2026-11-12 |
 
 ## History
 
