@@ -9,7 +9,7 @@
   "mcp": {
     "servers": {
       // Browser automation for frontend verification. Headless so it works in CI
-      // and on a remote host; the agent drives the running SPA on :8080.
+      // and on a remote host; the agent drives the running SPA on :3000.
       "playwright": {
         "type": "local",
         "command": ["npx", "-y", "@playwright/mcp@0.0.85", "--headless"]

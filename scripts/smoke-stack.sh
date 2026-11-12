@@ -1,35 +1,23 @@
 #!/usr/bin/env bash
-# Prove the whole stack works from one command:
-#   1. docker compose up -d --wait brings Axon Server and PostgreSQL to healthy
-#   2. ./gradlew integrationTest --tests '*AxonServerRegistrationIT' proves write, read and api
-#      each register with Axon Server (AxonServerConnectionManager.connections()["default"] == true)
-#   3. ./gradlew bootRun --parallel starts the three services and each answers /actuator/health
-#   4. api serves the built SPA shell from BOOT-INF/classes/static
+# Prove the deployed stack from one command:
+#   1. ./gradlew bootBuildImage :courses-frontend:dockerBuildImage builds all four images
+#   2. docker compose up -d --wait brings the whole stack to healthy
+#   3. Axon Server logs one "Application connected" line per service, which proves registration
+#   4. the frontend serves the SPA shell on :3000 and renders the gateway URL into config.js
 #
-# Registration is asserted inside each app, never by scraping /actuator/health: this starter
-# combination registers no Axon health indicator, so a green health endpoint says nothing about
-# the Axon connection.
-#
-# The Gradle run is backgrounded under `set -m` job control so it owns a process group and
-# `kill -- "-${RUN_PID}"` reaps the bootRun tasks together with their three JVMs. `setsid` is not
-# used because it does not exist on macOS/darwin, and killing only the Gradle PID orphans the
-# services. `--no-daemon` keeps the client, the tasks and the JVMs in that single group.
+# Liveness is the Compose healthcheck. Registration is read from the server's own log, never from
+# /actuator/health: this starter combination registers no Axon health indicator, so a green health
+# endpoint says nothing about the Axon connection. The integration suite proves the same thing
+# self-contained, with Testcontainers; this script proves the Compose stack specifically.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-LOG_FILE="build/bootrun.log"
-RUN_PID=""
-
 cleanup() {
   local status
   status=$?
   trap - EXIT INT TERM
-  if [ -n "$RUN_PID" ]; then
-    kill -- "-${RUN_PID}" 2>/dev/null || true
-    wait "$RUN_PID" 2>/dev/null || true
-  fi
   docker compose down -v --remove-orphans >/dev/null 2>&1 || true
   exit "$status"
 }
@@ -50,42 +38,38 @@ if [ ! -x ./gradlew ]; then
   exit 1
 fi
 
+echo "==> building images (bootBuildImage + frontend)"
+./gradlew bootBuildImage :courses-frontend:dockerBuildImage --no-daemon --console=plain
+
 echo "==> docker compose up -d --wait"
 docker compose up -d --wait
 
-echo "==> Axon registration for write, read and api"
-# --rerun forces the assertion to actually execute: the test's inputs do not include Axon Server
-# availability, so an up-to-date result would make a repeat run prove nothing about the stack.
-./gradlew integrationTest --tests '*AxonServerRegistrationIT' --rerun --no-daemon --console=plain
-echo "all three services registered with Axon Server"
-
-mkdir -p build
-echo "==> ./gradlew bootRun --parallel (log: ${LOG_FILE})"
-set -m
-./gradlew bootRun --parallel --no-daemon --console=plain >"$LOG_FILE" 2>&1 &
-RUN_PID=$!
-
-wait_for_health() {
-  local port="$1"
+wait_for_registration() {
+  local service="$1"
   local attempt
-  for ((attempt = 1; attempt <= 60; attempt++)); do
-    if curl -fsS "http://localhost:${port}/actuator/health" >/dev/null 2>&1; then
-      echo "port ${port}: up"
+  for attempt in $(seq 1 15); do
+    if docker compose logs axonserver | grep -q "Application connected: ${service}"; then
       return 0
     fi
     sleep 2
   done
-  echo "port ${port}: not up after 120s" >&2
-  echo "--- last 60 lines of ${LOG_FILE} ---" >&2
-  tail -n 60 "$LOG_FILE" >&2 || true
   return 1
 }
 
-for port in 8081 8082 8080; do
-  wait_for_health "$port"
+for service in write read api; do
+  if ! wait_for_registration "$service"; then
+    echo "Axon Server logged no connection for ${service}" >&2
+    docker compose logs axonserver | grep 'Application connected' >&2 || true
+    exit 1
+  fi
+  echo "Axon registration: ${service}"
 done
 
-curl -fsS http://localhost:8080/ | grep -q '<div id="root">'
-echo "SPA shell served by api"
+FRONTEND_URL="http://localhost:${FRONTEND_PORT:-3000}"
+API_URL="http://localhost:${API_PORT:-8080}"
 
-echo "stack is up: Axon Server, PostgreSQL, write, read and api"
+curl -fsS "${FRONTEND_URL}/" | grep -q '<div id="root">'
+curl -fsS "${FRONTEND_URL}/config.js" | grep -q "${API_URL}"
+echo "SPA shell served by frontend on ${FRONTEND_PORT:-3000}, gateway URL ${API_URL} rendered into config.js"
+
+echo "stack is up: Axon Server, PostgreSQL, write, read, api and frontend"
