@@ -1,4 +1,4 @@
-# Roadmap: Axon 5 DCB Showcase
+# Roadmap: Axon 5 DCB Courses
 
 ## Overview
 
@@ -6,9 +6,9 @@ A course-enrollment app whose real product is a lesson: a command decides using 
 
 ## Phases
 
-- [x] **Phase 1: Build and infrastructure skeleton** - Six modules, three boot apps, compose stack, formatting, FSD and Playwright MCP gated in CI
+- [x] **Phase 1: Build and infrastructure skeleton** - Six modules plus a test-support library, three boot apps, compose stack, formatting, FSD and Playwright MCP gated in CI
 - [ ] **Phase 2: Session and message path** - Seeded login reaches the services and a probe command/query is routed through Axon Server
-- [ ] **Phase 3: Message and tag contract** - Events, commands, queries, identifiers and tag keys are frozen in `domain`
+- [ ] **Phase 3: Message and tag contract** - Events, commands, queries, identifiers and tag keys are frozen in `courses-domain`
 - [ ] **Phase 4: DCB append-condition spike** - Two concurrent appends prove the boundary, and a post-commit emit reaches a remote subscriber
 - [ ] **Phase 5: Course creation across services** - Command → event → read → UI works end to end, and creation is idempotent
 - [ ] **Phase 6: Enroll under capacity** - The dynamic boundary enforces the seat cap and distinguishes conflict from business rejection
@@ -36,10 +36,10 @@ A course-enrollment app whose real product is a lesson: a command decides using 
 **Plans**: 6/6 plans executed
 
 Plans:
-- [x] 01-01-PLAN.md — Build graph + `write` service registering with Axon Server (tracer)
-- [x] 01-02-PLAN.md — `read` and `api` services; three independent bootJars
+- [x] 01-01-PLAN.md — Build graph + `courses-write` service registering with Axon Server (tracer)
+- [x] 01-02-PLAN.md — `courses-read` and `courses-api` services; three independent bootJars
 - [x] 01-03-PLAN.md — Frontend module, FSD tree, steiger + Prettier gates
-- [x] 01-04-PLAN.md — SPA embedded in `api` bootJar + `scripts/smoke-stack.sh`
+- [x] 01-04-PLAN.md — SPA build wiring + `scripts/smoke-stack.sh` (the embedded-SPA step this plan originally scoped was superseded by ADR-0004)
 - [x] 01-05-PLAN.md — CI `build` job (Node, Compose, integrationTest) + `.gitignore`
 - [x] 01-06-PLAN.md — Playwright MCP headless proof + local run-loop docs
 **UI hint**: no
@@ -50,10 +50,11 @@ Plans:
 **Depends on**: Phase 1
 **Requirements**: AUTH-01, TOPO-02, TOPO-03, PLAT-03
 **Success Criteria** (what must be TRUE):
-  1. A user logs in as a seeded account and the identity is available to downstream services (AUTH-01).
-  2. A probe command sent by `api` is handled by `write`, and a probe query by `read`, both through Axon Server; `api` depends only on `domain` (TOPO-02).
-  3. Guard tests fail if `write` gains a datasource or JPA, if any service other than `write` gains an `EventAppender`, or if Flyway or an event processor appears outside `read` (TOPO-03, PLAT-03).
-  4. The same integration test passes locally against the compose stack and in CI from a clean checkout (PLAT-03).
+  1. A user logs in through `POST /session` as one of the four fixed accounts (one admin, three students), `GET /me` returns the principal, and the identity is available to downstream services (AUTH-01).
+  2. A probe command sent by `courses-api` is handled by `courses-write`, and a probe query by `courses-read`, both through Axon Server; `courses-api` depends only on `courses-domain` (TOPO-02).
+  3. Guard tests fail if `courses-write` gains a datasource or JPA, if any service other than `courses-write` gains an `EventAppender`, or if Flyway or an event processor appears outside `courses-read` (TOPO-03, PLAT-03).
+  4. The same integration test passes through Testcontainers — locally and in CI from a clean checkout — without a pre-started Compose stack (PLAT-03, ADR-0003).
+  5. The SPA is authenticated by a session cookie: the CORS mapping allows credentials, the client sends them on fetches and on `EventSource`, and a cross-origin request without the cookie is rejected with 401 (or 403 per PLAT-04) (AUTH-01, ADR-0011).
 **Plans**: TBD
 **UI hint**: yes
 
@@ -63,7 +64,7 @@ Plans:
 **Depends on**: Phase 2
 **Requirements**: ID-01, TOPO-05
 **Success Criteria** (what must be TRUE):
-  1. Events, commands and queries are Kotlin data classes in `domain`, with no Spring or persistence dependency (TOPO-05).
+  1. Events, commands and queries are Kotlin data classes in `courses-domain`, with no Spring or persistence dependency (TOPO-05).
   2. Identifiers are UUIDv7 wrapped in typed value classes, and their canonical string form is what lands in `@EventTag` (ID-01).
   3. `@EventTag` is applied with a working Kotlin use-site target, and a stored-tag assertion proves the tag set is persisted rather than only present in the payload.
   4. Tag keys (`courseId`, `studentId`) are constants used by both `@EventTag` and the criteria builders, and `docs/event-tag-table.md` exists as the single canonical event × tag artifact.
@@ -76,14 +77,14 @@ Plans:
 **Requirements**: *(no v1 requirement — this phase retires the project's biggest technical risks before feature work)*
 **Success Criteria** (what must be TRUE):
   1. A two-thread spike with `maxInFlight > 1` produces exactly one commit and one `AppendEventsTransactionRejectedException` against Axon Server with DCB available under the server's default configuration; if a server-side flag turns out to be required, it is recorded in `compose.yaml` and the phase note.
-  2. The spike uses message shapes from `domain` and no ad-hoc event types.
+  2. The spike uses message shapes from `courses-domain` and no ad-hoc event types.
   3. The spike proves the routing-key hazard: adding a `courseId` routing key serializes the same test and it stops producing a conflict.
-  4. An emit issued from `@TransactionalEventListener(AFTER_COMMIT)` inside `read` reaches a remote subscriber through Axon Server, and a rolled-back write emits nothing.
+  4. An emit issued from `@TransactionalEventListener(AFTER_COMMIT)` reaches a remote subscriber through Axon Server, and a rolled-back write emits nothing. The spike may use a throwaway projection and a throwaway query handler to get there; both are removed in Phase 5, which builds the real read side.
   5. A short note records the observed behavior of the commercial starter on Boot 4, including the Axon Server license window.
 **Plans**: TBD
 
 ### Phase 5: Course creation across services
-**Goal**: The first full distributed slice works in the browser — an admin creates a course, `write` appends it, `read` writes PostgreSQL and serves it, and the UI renders the catalog; repeating the create is idempotent.
+**Goal**: The first full distributed slice works in the browser — an admin creates a course, `courses-write` appends it, `courses-read` writes PostgreSQL and serves it, and the UI renders the catalog; repeating the create is idempotent.
 **Mode**: mvp
 **Depends on**: Phase 4
 **Requirements**: AUTH-03, CRSE-01, CRSE-02, CRSE-03, IDEM-01, RDMD-01, RDMD-02
@@ -92,7 +93,7 @@ Plans:
   2. Repeating the same create request returns the existing course, appends no second event, and leaves the catalog unchanged (IDEM-01).
   3. A student attempting the same call receives 403 (AUTH-03).
   4. Invalid creation (blank title, capacity < 1) is rejected with a named business error, and capacity cannot be changed afterwards (CRSE-03).
-  5. The catalog renders seats remaining from the read model; restarting all services leaves it intact, `read` is the only module with JPA and Flyway, and a missing or renamed column fails startup (CRSE-02, RDMD-01, RDMD-02).
+  5. The catalog renders seats remaining from the read model; restarting all services leaves it intact, `courses-read` is the only module with JPA and Flyway, and a missing or renamed column fails startup (CRSE-02, RDMD-01, RDMD-02).
 **Plans**: TBD
 **UI hint**: yes
 
@@ -100,13 +101,14 @@ Plans:
 **Goal**: A student enrolls while seats remain, and the decision is enforced by a boundary that reads only the events the seat invariant needs — rejecting at capacity and on duplicates, and distinguishing a business rejection from an append conflict.
 **Mode**: mvp
 **Depends on**: Phase 5
-**Requirements**: ENRL-01, ENRL-02, ENRL-03, ENRL-06, PLAT-04, DOCS-02
+**Requirements**: AUTH-05, ENRL-01, ENRL-02, ENRL-03, ENRL-06, PLAT-04
 **Success Criteria** (what must be TRUE):
-  1. A student enrolls and the catalog's seat count decreases once `read` has committed and pushed the change (ENRL-01).
-  2. Enrolling twice, or while already waitlisted, is rejected with a named business error (ENRL-02).
-  3. Enrolling in a full course returns 422 `Course is full`; an append conflict returns 409 with the conflicting tags; unknown course returns 404 (ENRL-03, PLAT-04).
-  4. A test asserts the enroll `EventCriteria` equals exactly the frozen type set over `courseId` (ENRL-06).
-  5. The enroll `@EventCriteriaBuilder` carries a comment block naming tag keys, the exact event types, and the handler consuming each type (DOCS-02).
+  1. A student enrolls and a repeated catalog GET shows one fewer seat once `courses-read` has committed; the pushed update arrives in Phase 10 (ENRL-01).
+  2. Enrolling twice is rejected with `already enrolled`; enrolling while already waitlisted is rejected with `already waitlisted`, exercised through a given `WaitlistJoined` event because the waitlist command arrives in Phase 7 (ENRL-02).
+  3. Enrolling in a full course returns 422 `course is full`; an append conflict returns 409 with the conflicting tags; unknown course returns 404 (ENRL-03, PLAT-04).
+  4. A `studentId` supplied in the request body or a query parameter is rejected with 403; the acting student comes from the session (AUTH-05).
+  5. A test asserts the enroll `EventCriteria` equals exactly the frozen type set over `courseId` (ENRL-06).
+  6. The enroll `@EventCriteriaBuilder` carries a comment block naming tag keys, the exact event types, and the handler consuming each type; the same block is required for the remaining builders, tracked by DOCS-02 in Phase 7.
 **Plans**: TBD
 **UI hint**: yes
 
@@ -114,7 +116,7 @@ Plans:
 **Goal**: Joining a full course's waitlist is a separate explicit action with FIFO order, and dropping an enrollment promotes the first waitlisted student in the same append.
 **Mode**: mvp
 **Depends on**: Phase 6
-**Requirements**: ENRL-04, ENRL-05, ENRL-07, DROP-01, DROP-02
+**Requirements**: DOCS-02, ENRL-04, ENRL-05, ENRL-07, DROP-01, DROP-02
 **Success Criteria** (what must be TRUE):
   1. A rejected student can join the waitlist explicitly, and the catalog's waitlist depth increases (ENRL-04).
   2. Two joins with identical payload timestamps still promote in append order (ENRL-05).
@@ -125,19 +127,19 @@ Plans:
 **UI hint**: yes
 
 ### Phase 8: Last-seat race proof
-**Goal**: A reproducible race across services proves that N distinct students competing for one seat yield exactly one enrollment, with the boundary rejection proven, the business rejection tallied separately, and a negative control proving the test can fail.
+**Goal**: A reproducible test across services proves that N distinct students competing for one seat yield exactly one enrollment, with the boundary rejection proven, the business rejection tallied separately, and a negative control proving the test can fail. There is no demo endpoint: the test is the artifact, and its output is quotable.
 **Mode**: mvp
 **Depends on**: Phase 7
-**Requirements**: RACE-01, RACE-02, RACE-03, RACE-04, RACE-05, E2E-02, DOCS-03
+**Requirements**: RACE-01, RACE-02, RACE-03, RACE-04, E2E-02, DOCS-03
 **Success Criteria** (what must be TRUE):
-  1. `POST /demo/race` starts N ≥ 2 distinct students behind a barrier against a freshly created one-seat course and returns `{enrolled, full, conflicted, maxInFlight}` (RACE-01, RACE-05).
+  1. A contention `*IT` class dispatches N ≥ 2 `EnrollStudent` commands through the production `CommandGateway` against a live Axon Server, from a shared barrier, against a course it creates and N distinct `studentId` values dispatched at the command level; `./gradlew :courses-api:integrationTest --tests '*LastSeatRaceIT'` prints `{enrolled, full, conflicted, maxInFlight}` (RACE-01).
   2. Exactly one caller is `enrolled`, and `enrolled + full + conflicted == N` (RACE-02).
   3. The forced-overlap variant asserts `AppendEventsTransactionRejectedException` with the conflicting `courseId`, and `maxInFlight > 1` proves the race was not serialized (RACE-03).
-  4. The tagged negative-control harness runs via a separate Gradle task and a manually triggered CI job, yields more than one winner, and the README quotes the command and output (RACE-04).
-  5. Playwright runs the full user journey against the Compose stack — login, create course, enroll, drop, race — and the job publishes its report (E2E-02).
+  4. The negative-control harness in `src/negativeControl/kotlin` runs through `negativeControlTest` and a manually triggered CI job, yields more than one winner, and the README quotes the command and output (RACE-04).
+  5. Playwright runs the full user journey against the Compose stack — login, create course, enroll, drop — the job builds the four images first and publishes the report (E2E-02).
   6. Race and drop/promotion tests use sentence-form names and are listed in the README's evidence section (DOCS-03).
 **Plans**: TBD
-**UI hint**: yes
+**UI hint**: no
 
 ### Phase 9: My enrollments and seeded scenarios
 **Goal**: A signed-in student sees only their own enrollments and waitlist positions, and first boot seeds the three demo scenarios through real commands.
@@ -146,21 +148,22 @@ Plans:
 **Requirements**: AUTH-02, VIEW-01, PLAT-02
 **Success Criteria** (what must be TRUE):
   1. A student's view lists their enrollments with state and waitlist position (VIEW-01).
-  2. Requesting another student's enrollments is rejected with 403, including when the id arrives in a body or query parameter (AUTH-02).
-  3. First boot seeds an open course, a full course, and a full course with a waitlist through commands; a restart does not duplicate them, and demo seeding is disabled in the test profile (PLAT-02).
+  2. Requesting another student's enrollments is rejected with 403, including when the id arrives in a body or query parameter (AUTH-02, AUTH-05).
+  3. First boot seeds the three demo courses through commands, a restart does not duplicate them, and the E2E profile disables only those scenario courses while the fixed accounts stay available (PLAT-02).
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 10: Live updates
-**Goal**: The UI receives read-model snapshots and subsequent changes over SSE, emitted by `read` after commit, with reconnect recovery and no polling.
+**Goal**: The UI receives read-model snapshots and subsequent changes over SSE, emitted by `courses-read` after commit, with reconnect recovery and no polling.
 **Mode**: mvp
 **Depends on**: Phase 9
-**Requirements**: VIEW-02, VIEW-03, TOPO-06
+**Requirements**: PLAT-07, VIEW-02, VIEW-03, TOPO-06
 **Success Criteria** (what must be TRUE):
-  1. One subscription-query call yields the snapshot and then a pushed update emitted by `read`; the UI renders it within 2 seconds of the commit and performs no seat arithmetic (VIEW-02, VIEW-03).
+  1. One subscription-query call yields the snapshot and then a pushed update emitted by `courses-read`; the UI renders it within 2 seconds of the server-side emit and performs no seat arithmetic (VIEW-02, VIEW-03).
   2. A dropped client reconnects with `Last-Event-ID` and recovers the final state (VIEW-03).
-  3. The stream carries whole read-model snapshots; `api` has no event-stream subscription and no domain event reaches the browser (TOPO-06).
+  3. The stream carries whole read-model snapshots; `courses-api` has no event-stream subscription and no domain event reaches the browser (TOPO-06).
   4. A rolled-back write produces no emitted update, and no client remains on a stale value after reconnect.
+  5. The whole live path appends no events: a subscriber receives updates with no write to the event store (PLAT-07).
 **Plans**: TBD
 **UI hint**: yes
 
@@ -170,7 +173,7 @@ Plans:
 **Depends on**: Phase 10
 **Requirements**: DOCS-01, DOCS-04, DOCS-05
 **Success Criteria** (what must be TRUE):
-  1. The README walks one command across `api`, `write` and `read` with expected output, including a rejected hop and the 409-vs-422 distinction (DOCS-01).
+  1. The README walks one command across `courses-api`, `courses-write` and `courses-read` with expected output, including a rejected hop and the 409-vs-422 distinction (DOCS-01).
   2. The README links `docs/event-tag-table.md` and quotes the table per command (DOCS-05).
   3. The design note compares the dynamic boundary with fixed-aggregate alternatives, covers the mega-course aggregate and student-aggregate-plus-saga counterfactuals, and explains the single-retry idiom and why distribution does not weaken the append condition (DOCS-04).
 **Plans**: TBD
@@ -190,3 +193,59 @@ Plans:
 | 9. My enrollments and seeded scenarios | 0/TBD | Not started | - |
 | 10. Live updates | 0/TBD | Not started | - |
 | 11. Teaching artifacts | 0/TBD | Not started | - |
+
+## Backlog
+
+### Phase 999.1: Measure code coverage (BACKLOG)
+
+**Goal**: The build reports how much of the production code the tests actually exercise, and a
+committed baseline stops it from sliding once real domain logic exists.
+**Requirements**: TBD
+**Plans**: 0 plans
+
+Captured context:
+
+- Phase 1 has nothing meaningful to measure — empty Boot applications, configuration and
+  registration tests — so a threshold there would be a formality.
+- Step 1: add JaCoCo to `kotlin-conventions` in reporting mode only
+  (`jacocoTestReport`, no `jacocoTestCoverageVerification`), so the number is visible without
+  blocking.
+- Step 2: once the decision slices exist (end of Phase 7 — `courses-domain`, `courses-write` and the
+  read side carry real logic), record a baseline and turn on a ratchet: coverage may not fall below
+  the committed value.
+- Integration suites contribute: the report must merge `test` and `integrationTest` execution data,
+  not just unit tests.
+- Exclude generated, Spring/Axon wiring and `@Configuration`-only classes, otherwise the number
+  measures framework glue.
+- Frontend is separate: Vitest + v8 coverage when the SPA gains logic; Playwright E2E is not
+  counted as unit coverage.
+- Done means: CI's integration step merges `test` + `integrationTest` into one JaCoCo report (`build`
+  itself stays Docker-free), the
+  baseline file is committed, and CI fails when coverage drops below it.
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.2: Scan the container images (BACKLOG)
+
+**Goal**: A published image is scanned for vulnerable OS and JVM packages, so a stale run image is
+visible before it reaches a registry.
+**Requirements**: TBD
+**Plans**: 0 plans
+
+Captured context:
+
+- Not actionable yet: images are built locally, never pushed, so there is no artifact to scan and no
+  registry to scan it in.
+- Precondition: CI must build and publish the images first — a decision that amends ADR-0005, taken
+  when the trigger fires, not before.
+- Trigger: the first time an image is published — a registry push, a release, or a hosted demo.
+- Then: Trivy or Grype over the four images in the pipeline, failing on `HIGH`/`CRITICAL` with a
+  suppression file that carries a reason and an expiry per entry, the same pattern as an audit
+  baseline.
+- Related: ADR-0005 records that OS patches arrive from the Paketo run image, so the scanner reports
+  on the image that was built, not on the buildpack version in the catalog.
+- Dependabot alerts (ADR-0010) cover dependency CVEs, not the base OS inside the run image.
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)

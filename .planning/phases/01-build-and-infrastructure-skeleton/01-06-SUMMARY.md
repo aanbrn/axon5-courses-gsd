@@ -59,7 +59,7 @@ coverage:
     requirement: E2E-01
     verification:
       - kind: automated_ui
-        ref: "playwright MCP, 2026-11-11: browser_navigate http://localhost:8080/ -> title 'Axon 5 DCB Showcase'; browser_snapshot heading 'Course catalog' [level=1]; browser_evaluate data-testid app-shell -> true"
+        ref: "playwright MCP, 2026-11-11: browser_navigate http://localhost:8080/ -> title 'Axon 5 DCB Courses'; browser_snapshot heading 'Course catalog' [level=1]; browser_evaluate data-testid app-shell -> true"
         status: pass
     human_judgment: true
     rationale: "The navigation is an agent-driven MCP session, not a repeatable suite: no Phase 1 test starts a browser, so a human must accept the recorded transcript as the proof."
@@ -94,11 +94,11 @@ the registration proof and the 12-hour unlicensed Axon Server window.**
 ## Accomplishments
 
 - Proved E2E-01 end to end: the config already tracked in `opencode.jsonc` (`npx -y
-  @playwright/mcp@0.0.85 --headless`) navigated the SPA served by `api` on `:8080` and the
+  @playwright/mcp@0.0.85 --headless`) navigated the SPA served by `courses-api` on `:8080` and the
   accessibility tree showed the expected shell — no config edit was needed.
 - Documented the local run loop in `docs/tooling.md`: `docker compose up -d --wait` for Axon Server
-  (8024/8124) and PostgreSQL (5432), `./gradlew bootRun --parallel` for `write` (8081), `read` (8082)
-  and `api` (8080), plus what `./scripts/smoke-stack.sh` does and when to reach for it.
+  (8024/8124) and PostgreSQL (5432), `./gradlew bootRun --parallel` for `courses-write` (8081), `courses-read` (8082)
+  and `courses-api` (8080), plus what `./scripts/smoke-stack.sh` does and when to reach for it.
 - Stated that Axon registration is proven by `integrationTest --tests
   '*AxonServerRegistrationIT'`, never by `/actuator/health`, matching what the smoke script asserts.
 - Replaced the stale CI paragraph ("builds once `gradlew` exists, until then the step is skipped")
@@ -106,7 +106,7 @@ the registration proof and the 12-hour unlicensed Axon Server window.**
   `./gradlew build`, tagged `integrationTest`, failure logs and always-teardown — plus the required
   `format` and `title` checks.
 - Recorded the 12-hour unlicensed Axon Server window, the restart remedy and the local-only
-  `enrollment/enrollment/enrollment` credential, so nobody presents the stack as production-ready.
+  `courses/courses/courses` credential, so nobody presents the stack as production-ready.
 
 ## E2E-01 Evidence
 
@@ -115,20 +115,20 @@ services reported `{"groups":["liveness","readiness"],"status":"UP"}`):
 
 1. `browser_navigate` → `http://localhost:8080/`
    - **Page URL:** `http://localhost:8080/`
-   - **Page Title:** `Axon 5 DCB Showcase`
+   - **Page Title:** `Axon 5 DCB Courses`
 2. `browser_snapshot` →
 
    ```yaml
    - generic [ref=e2]:
      - banner [ref=e3]:
-       - strong [ref=e4]: Axon 5 DCB Showcase
+       - strong [ref=e4]: Axon 5 DCB Courses
      - main [ref=e5]:
        - heading "Course catalog" [level=1] [ref=e6]
    ```
 
 3. `browser_evaluate` `() => document.querySelector('[data-testid="app-shell"]') !== null` → `true`
 4. `curl -fsS http://localhost:8080/ | grep -q '<div id="root">'` → served the SPA shell from the
-   api jar (`<title>Axon 5 DCB Showcase</title>`, `<div id="root"></div>`).
+   api jar (`<title>Axon 5 DCB Courses</title>`, `<div id="root"></div>`).
 
 Only console entry: `404` for `/favicon.ico` — pre-existing and out of scope for this docs-only
 plan (see Deferred Issues).
@@ -216,3 +216,8 @@ None - no external service configuration required.
 - FOUND: `docs/tooling.md`
 - FOUND: `.planning/phases/01-build-and-infrastructure-skeleton/01-06-SUMMARY.md`
 - FOUND: commit `cd02165` (ancestor of HEAD)
+
+## Later changes
+
+- `docs/tooling.md` now documents Testcontainers-backed integration suites (no pre-started Compose,
+  no tag filters) and a `build` job without Compose steps.

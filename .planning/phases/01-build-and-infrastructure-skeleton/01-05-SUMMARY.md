@@ -8,11 +8,11 @@ tags: [github-actions, ci, docker-compose, integration-test, prettier, gitignore
 requires:
   - phase: 01-build-and-infrastructure-skeleton
     provides: 01-01 Gradle skeleton (gradlew, multi-module build, integrationTest task shape)
-    provides: 01-02 read/api services (compose-backed Axon Server registration tests)
-    provides: 01-03 frontend module (frontend/package-lock.json for the npm cache key)
+    provides: 01-02 courses-read/api services (compose-backed Axon Server registration tests)
+    provides: 01-03 frontend module (courses-frontend/package-lock.json for the npm cache key)
 provides:
   - CI `build` job that starts Axon Server + PostgreSQL, builds Docker-free, runs integrationTest, and tears down
-  - setup-node step pinned to a full commit SHA, cached on frontend/package-lock.json
+  - setup-node step pinned to a full commit SHA, cached on courses-frontend/package-lock.json
   - `.playwright-mcp/` gitignored so an agent MCP verification run leaves no untracked noise
 affects: [phase-02-write-side-dcb, phase-08-e2e-ci-job]
 
@@ -91,7 +91,7 @@ status: complete
 
 ## Accomplishments
 
-- `build` job extended: `actions/setup-node` (v7.1.0, full SHA, npm cache keyed on `frontend/package-lock.json`, Node 24.20.0), `docker compose up -d --wait`, `./gradlew build --no-daemon`, `./gradlew integrationTest --no-daemon`, `docker compose logs --no-color` on failure, and `docker compose down -v --remove-orphans` on `if: always()`.
+- `build` job extended: `actions/setup-node` (v7.1.0, full SHA, npm cache keyed on `courses-frontend/package-lock.json`, Node 24.20.0), `docker compose up -d --wait`, `./gradlew build --no-daemon`, `./gradlew integrationTest --no-daemon`, `docker compose logs --no-color` on failure, and `docker compose down -v --remove-orphans` on `if: always()`.
 - `./gradlew build` stays Docker-free: the distributed proof is the separate tagged `integrationTest` task, so a local build never needs a running server.
 - The wrapper-detect placeholder is gone; `timeout-minutes` raised to 30.
 - `.playwright-mcp/` added to the Playwright block in `.gitignore` (the MCP server writes snapshots there, distinct from `.playwright/`).
@@ -168,3 +168,8 @@ None — no external service configuration required. The integration test path n
 ## Self-Check: PASSED
 
 All created/modified files exist and both task commits are ancestors of HEAD.
+
+## Later changes
+
+- The `build` job no longer starts or stops Compose: the integration suites own Axon Server and
+  PostgreSQL through Testcontainers on random ports.

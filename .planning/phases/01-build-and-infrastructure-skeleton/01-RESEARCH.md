@@ -8,7 +8,7 @@
 
 Phase 1 is plumbing, but three of its details fail loudly and late if guessed: the Gradle `java-platform` wiring, the Axon Server "no `default` context" trap, and the PostgreSQL 18 volume path. All three were reproduced here and are quoted verbatim below.
 
-The build shape is proven end to end in a scratch project: `:platform` importing the Spring Boot and Axoniq BOMs with `javaPlatform { allowDependencies() }` + `api(platform(...))`, consumers declaring `implementation(platform(project(":platform")))`, and `./gradlew :api:bootJar` producing a jar whose `BOOT-INF/classes/static/index.html` is the Vite bundle. The `frontend` module drives `npm` through plain `Exec` tasks under the `base` plugin, so `assemble`/`check` exist and `./gradlew build` builds the SPA with no separate npm invocation (TOPO-04).
+The build shape is proven end to end in a scratch project: `:courses-platform` importing the Spring Boot and Axoniq BOMs with `javaPlatform { allowDependencies() }` + `api(platform(...))`, consumers declaring `implementation(platform(project(":courses-platform")))`, and `./gradlew :courses-api:bootJar` producing a jar whose `BOOT-INF/classes/static/index.html` is the Vite bundle. The `courses-frontend` module drives `npm` through plain `Exec` tasks under the `base` plugin, so `assemble`/`check` exist and `./gradlew build` builds the SPA with no separate npm invocation (TOPO-04).
 
 Runtime is proven too. A Kotlin/Spring Boot 4.1.2 app with `io.axoniq.framework:axoniq-spring-boot-starter:5.4.1` boots on JDK 21 and connects to Axon Server 2026.1.7 — but only after the server is initialised with `axoniq_axonserver_standalone=true`; without it every client loops on `[AXONIQ-1302] default: not found in any replication group`. The Axon actuator health indicator is **not** registered in this combination, so the "services registered" gate must assert `AxonServerConnectionManager.connections()` from inside the app, not scrape `/actuator/health`.
 
@@ -20,12 +20,12 @@ Frontend is proven too: a five-file FSD tree (`app`, `pages/home`, `shared/ui`) 
 
 | Capability | Primary Tier | Secondary Tier | Rationale |
 |---|---|---|---|
-| Module graph, dependency versions, bootJar assembly | Build (Gradle) | — | One `./gradlew build` must produce every artifact; no module may own version truth outside `gradle/libs.versions.toml` + `:platform` |
+| Module graph, dependency versions, bootJar assembly | Build (Gradle) | — | One `./gradlew build` must produce every artifact; no module may own version truth outside `gradle/libs.versions.toml` + `:courses-platform` |
 | Infrastructure lifecycle (Axon Server, PostgreSQL) | Local container tier (Docker Compose) | CI runner | Same pinned images locally and in CI; no Testcontainers in Phase 1 |
 | Process hosting, ports, Axon connection | JVM process tier (Spring Boot app) | — | Each service owns its own `server.port` and Axon client; Gradle only launches |
-| SPA build | Frontend module (npm/Vite inside Gradle) | — | `:frontend` runs the toolchain; the output is a build artifact, not a deployment step |
-| SPA delivery | API tier (`api` static resources) | CDN in production (out of scope) | Only `api` serves HTTP to the browser; Vite runs only in dev (Phase 2+) |
-| FSD structure enforcement | Frontend toolchain (`steiger` via npm script) | Build (`:frontend:check`) | The linter must run where the source lives; Gradle only invokes it |
+| SPA build | Frontend module (npm/Vite inside Gradle) | — | `:courses-frontend` runs the toolchain; the output is a build artifact, not a deployment step |
+| SPA delivery | API tier (`courses-api` static resources) | CDN in production (out of scope) | Only `courses-api` serves HTTP to the browser; Vite runs only in dev (Phase 2+) |
+| FSD structure enforcement | Frontend toolchain (`steiger` via npm script) | Build (`:courses-frontend:check`) | The linter must run where the source lives; Gradle only invokes it |
 | Formatting enforcement | Build (Spotless) + repo scripts (Prettier) | CI | Spotless for Kotlin, Prettier for TS and repo files; CI verifies, never rewrites |
 | CI gating | CI (GitHub Actions) | — | Job ids are the required-check names and must not change |
 | Agent-driven browser check | Agent tooling (Playwright MCP client config) | — | Client-spawned MCP server; the repo only carries `opencode.jsonc` |
@@ -37,7 +37,7 @@ Frontend is proven too: a five-file FSD tree (`app`, `pages/home`, `shared/ui`) 
 |----|-------------|------------------|
 | PLAT-01 | `docker compose up -d` plus one Gradle run starts Axon Server, PostgreSQL and all three services | Compose file verified `--wait`-clean with both healthchecks; `axoniq_axonserver_standalone` required (§ Pitfall P1); `./gradlew bootRun --parallel` verified to run tasks concurrently (§ Pitfall P8) |
 | PLAT-05 | CI builds the whole project and runs unit and distributed integration tests on every PR, starting Axon Server and PostgreSQL | `build` job keeps its id, gains `docker compose up -d --wait` + `./gradlew integrationTest`; integration test design in § Validation Architecture |
-| QUAL-01 | Spotless, frontend Prettier and repo Prettier run in CI | Spotless `spotlessCheck` verified wired into `check`; `:frontend:check` hosts `format:check`; `format` job already runs `scripts/format-check.sh` |
+| QUAL-01 | Spotless, frontend Prettier and repo Prettier run in CI | Spotless `spotlessCheck` verified wired into `check`; `:courses-frontend:check` hosts `format:check`; `format` job already runs `scripts/format-check.sh` |
 | E2E-01 | Playwright MCP configured in tracked config and can drive the running SPA headless | `opencode.jsonc` `mcp.servers.playwright` validated against the OpenCode schema; headless navigation of the api-served SPA reproduced (§ Code Examples) |
 | TOPO-01 | Three independent Spring Boot apps, each with its own bootJar | Boot plugin auto-detects the Kotlin top-level `main` (`Start-Class: demo.ApiApplicationKt`); three-module build produced three jars |
 | TOPO-04 | `./gradlew build` produces the SPA bundle and all three bootJars, no separate npm step | Verified: `bootJar` contained `BOOT-INF/classes/static/index.html` + hashed assets after one Gradle invocation |
@@ -57,9 +57,9 @@ These have the same authority as locked decisions. Every one of them is actionab
 |---|---|
 | Kotlin on JVM 21, Gradle Kotlin DSL (`build.gradle.kts`) | `jvmToolchain(21)` in every Kotlin module; no Groovy DSL |
 | Kotlin 2.4.21, Spring Boot 4.1.2, Axon 5.4.1 via `io.axoniq.framework:axoniq-framework-bom`, Axon Server 2026.1.7, PostgreSQL 18 | Pin exactly these in `gradle/libs.versions.toml` and `compose.yaml` |
-| Six modules, `:platform` is `java-platform` with `allowDependencies()` and `api(platform(...))` | Exact snippet in § Pattern 2; both failure modes reproduced |
-| Root package `io.github.aanbrn.showcase`; `group = "io.github.aanbrn.showcase"` | Root `build.gradle.kts` `allprojects { group = ... }`; package dirs under `src/main/kotlin/io/github/aanbrn/showcase` |
-| Ports `api`:8080, `write`:8081, `read`:8082, Axon 8124/8024, PostgreSQL 5432, Vite 5173 | `server.port` per module; `server.port: 5173` + `/api` proxy in `vite.config.ts` |
+| Six modules, `:courses-platform` is `java-platform` with `allowDependencies()` and `api(platform(...))` | Exact snippet in § Pattern 2; both failure modes reproduced |
+| Root package `io.github.aanbrn.courses`; `group = "io.github.aanbrn.courses"` | Root `build.gradle.kts` `allprojects { group = ... }`; package dirs under `src/main/kotlin/io/github/aanbrn/courses` |
+| Ports `courses-api`:8080, `courses-write`:8081, `courses-read`:8082, Axon 8124/8024, PostgreSQL 5432, Vite 5173 | `server.port` per module; `server.port: 5173` + `/api` proxy in `vite.config.ts` |
 | Line length 100, 4-space Kotlin, 2-space TS, LF, final newline | Root `.editorconfig` already correct — do not duplicate settings per module |
 | `./gradlew spotlessApply` and `npm run format` are the only sanctioned normalizers | Document both; CI runs `spotlessCheck` / `format:check` only |
 | No pre-commit hook; enforcement is CI only | Do not add `.git/hooks`, Husky, or Lefthook |
@@ -67,13 +67,13 @@ These have the same authority as locked decisions. Every one of them is actionab
 | `.opencode/` is generated and gitignored; project MCP servers live in tracked `opencode.jsonc` | Only edit `opencode.jsonc`, never the generated `.opencode/opencode.json` |
 | Commits: conventional prefixes, imperative, English, ≤72 chars subject | Applies to every plan's commit step |
 | No automatic command retries; `CreateCourse` idempotent by key | Not exercised in Phase 1 — do not build retry plumbing |
-| E2E lives in `frontend/e2e/`, outside `src`, `data-testid` selectors, no `waitForTimeout` | Phase 8 owns the suite; Phase 1 only reserves the directory shape and the MCP proof |
-| Read-side caching deferred; one `read` service; no second read process | Phase 1 creates exactly three app modules |
+| E2E lives in `courses-frontend/e2e/`, outside `src`, `data-testid` selectors, no `waitForTimeout` | Phase 8 owns the suite; Phase 1 only reserves the directory shape and the MCP proof |
+| Read-side caching deferred; one `courses-read` service; no second read process | Phase 1 creates exactly three app modules |
 
 ### Locked decisions carried from planning artifacts
 
-- Three service modules named `write`, `read`, `api`; `domain` is the shared contract library; `platform` re-exports BOMs and contains no code; `frontend` is a Gradle module.
-- JPA/Flyway/datasource belong to `read` **only**, and only from Phase 5. `write` never gains a datasource.
+- Three service modules named `courses-write`, `courses-read`, `courses-api`; `courses-domain` is the shared contract library; `courses-platform` re-exports BOMs and contains no code; `courses-frontend` is a Gradle module.
+- JPA/Flyway/datasource belong to `courses-read` **only**, and only from Phase 5. `courses-write` never gains a datasource.
 - Every service is a real Spring Boot application; no shared runtime.
 - CI required checks are `build`, `format`, `title` (verified job ids in `.github/workflows/ci.yml:21`, `:30`, `.github/workflows/pr-title.yml:15`).
 
@@ -98,20 +98,20 @@ These have the same authority as locked decisions. Every one of them is actionab
 |---|---|---|---|
 | Spotless | **8.11.0** | Kotlin/ktlint formatting gate | Root build, applied to every Kotlin module |
 | ktlint (via Spotless) | **1.8.0** | Rule engine; reads root `.editorconfig` | Pin explicitly so the gate does not drift with the plugin |
-| Prettier | **3.9.10** | TS/TSX + repo-file formatting | `frontend` devDependency (`format`, `format:check`) and `scripts/format*.sh` |
-| steiger | **0.10.0** | FSD structure linter | `frontend` devDependency; `lint:fsd` npm script |
+| Prettier | **3.9.10** | TS/TSX + repo-file formatting | `courses-frontend` devDependency (`format`, `format:check`) and `scripts/format*.sh` |
+| steiger | **0.10.0** | FSD structure linter | `courses-frontend` devDependency; `lint:fsd` npm script |
 | `@feature-sliced/steiger-plugin` | **0.8.2** | FSD rule set (`fsd.configs.recommended`) | Imported by `steiger.config.js`; also a transitive dep of steiger 0.10.0 |
 | create-vite | **9.3.4** (`--template react-ts`) | SPA scaffold | One-time generator: React ^19.3.1, Vite ^8.3.6 (resolves 8.3.7), TypeScript ~7.0.2, `@vitejs/plugin-react` ^6.1.2, oxlint ^1.90.0 |
 | `@playwright/mcp` | **0.0.85** | Headless browser MCP server | Already pinned in `opencode.jsonc:15`; `--headless` verified |
 | Node.js | **24.20.0** (local; CI pins the same) | npm toolchain | `scripts/setup-tooling.sh` already demands Node ≥ 24 |
-| npm | 11.19.0 (local) | Package manager | `npm ci` requires a committed `frontend/package-lock.json` |
+| npm | 11.19.0 (local) | Package manager | `npm ci` requires a committed `courses-frontend/package-lock.json` |
 
 ### Alternatives Considered
 
 | Instead of | Could Use | Tradeoff |
 |---|---|---|
 | Gradle wrapper 9.7.0 | 8.14.6 | Boot supports it and it is below every ceiling, but it is two majors behind KGP's supported line and misses Gradle 9 fixes; choose 8.14.6 only if a plugin misbehaves on 9.x |
-| Plain `Exec` tasks for `:frontend` | `com.github.node-gradle.node` 7.1.0 | node-gradle 7.1.0 applies and runs on Gradle 9.9 (reproduced), but its last release is Sep 2024 and there are open Gradle-9/configuration-cache issues (#350, #351). It also downloads Node, which duplicates `setup-node` in CI |
+| Plain `Exec` tasks for `:courses-frontend` | `com.github.node-gradle.node` 7.1.0 | node-gradle 7.1.0 applies and runs on Gradle 9.9 (reproduced), but its last release is Sep 2024 and there are open Gradle-9/configuration-cache issues (#350, #351). It also downloads Node, which duplicates `setup-node` in CI |
 | Named Docker volumes | Bind mounts `./.axonserver`, `./pgdata` | Bind mounts make the data visible and match the existing `.gitignore` entries; named volumes keep the working tree clean. Either is fine — never both |
 | `docker compose up -d --wait` | GitHub Actions `services:` | Compose reuses the exact local file (no duplicated image tags/env). Use `services:` only if compose proves flaky on the runner |
 
@@ -143,10 +143,10 @@ The order is not cosmetic; four of the steps produce hard failures if skipped. A
 1. `settings.gradle.kts` — `rootProject.name`, `include(...)`, `dependencyResolutionManagement.repositories`, foojay resolver.
 2. `gradle/libs.versions.toml` — every version and plugin alias.
 3. Root `build.gradle.kts` — `group`/`version`, plugin declarations with `apply false`, Spotless convention, no Kotlin plugin applied to the root.
-4. `:platform` — `java-platform` + `allowDependencies()` + BOM imports.
-5. `:domain` — Kotlin library consuming `platform(project(":platform"))`.
-6. `:write`, `:read`, `:api` — Kotlin + Spring + Boot plugins, app class, `application.yml`.
-7. `:frontend` — `base` plugin + `npm` Exec tasks + the Vite/FSD tree.
+4. `:courses-platform` — `java-platform` + `allowDependencies()` + BOM imports.
+5. `:courses-domain` — Kotlin library consuming `platform(project(":courses-platform"))`.
+6. `:courses-write`, `:courses-read`, `:courses-api` — Kotlin + Spring + Boot plugins, app class, `application.yml`.
+7. `:courses-frontend` — `base` plugin + `npm` Exec tasks + the Vite/FSD tree.
 8. Wrapper: `gradle wrapper --gradle-version 9.7.0 --distribution-type bin`.
 9. `compose.yaml`, then `scripts/`, then CI.
 
@@ -156,14 +156,14 @@ Failure modes, in the order they bite:
 |---|---|
 | No `repositories` before resolving | `Cannot resolve external dependency org.jetbrains.kotlin:kotlin-stdlib:2.4.21 because no repositories are defined.` |
 | `java-platform` without `allowDependencies()` | `Adding dependencies to platforms is not allowed by default. Most likely you want to add constraints instead. … Found dependencies in the 'api' configuration.` |
-| `implementation(project(":platform"))` | `No matching variant of project ':platform' was found. … Incompatible because this component declares a platform and the consumer needed a library` |
-| `:frontend` without `base` plugin | `Task with name 'assemble' not found in project ':frontend'.` |
-| Boot plugin applied to `platform`/`domain` | Produces an empty `bootJar` and a second "application" in the graph — `./gradlew bootRun` then launches a module that has no `main` |
+| `implementation(project(":courses-platform"))` | `No matching variant of project ':courses-platform' was found. … Incompatible because this component declares a platform and the consumer needed a library` |
+| `:courses-frontend` without `base` plugin | `Task with name 'assemble' not found in project ':courses-frontend'.` |
+| Boot plugin applied to `courses-platform`/`courses-domain` | Produces an empty `bootJar` and a second "application" in the graph — `./gradlew bootRun` then launches a module that has no `main` |
 | Starter declared without the Axoniq BOM | Unversioned dependency cannot resolve (`Could not find io.axoniq.framework:axoniq-spring-boot-starter:`) |
 
-### Pattern 2: The `platform` module (verified)
+### Pattern 2: The `courses-platform` module (verified)
 
-`platform/build.gradle.kts`:
+`courses-platform/build.gradle.kts`:
 
 ```kotlin
 plugins { `java-platform` }
@@ -182,7 +182,7 @@ Consumers:
 
 ```kotlin
 dependencies {
-    implementation(platform(project(":platform")))
+    implementation(platform(project(":courses-platform")))
     // …
 }
 ```
@@ -207,12 +207,12 @@ Two consequences the plan must state:
 ```text
 docker compose up -d --wait
   ├─ axonserver (8024 HTTP/console, 8124 gRPC)  ── healthy: curl /actuator/info
-  └─ postgres   (5432)                          ── healthy: pg_isready -U enrollment
+  └─ postgres   (5432)                          ── healthy: pg_isready -U courses
 
 ./gradlew bootRun --parallel --console=plain
-  ├─ :write:bootRun  server.port=8081  axon client → localhost:8124
-  ├─ :read:bootRun   server.port=8082  axon client → localhost:8124
-  └─ :api:bootRun    server.port=8080  axon client → localhost:8124, serves SPA from classpath:/static
+  ├─ :courses-write:bootRun  server.port=8081  axon client → localhost:8124
+  ├─ :courses-read:bootRun   server.port=8082  axon client → localhost:8124
+  └─ :courses-api:bootRun    server.port=8080  axon client → localhost:8124, serves SPA from classpath:/static
 ```
 
 - The Axon connector connects during startup and **retries** if the server is absent (`Failed to get connection to AxonServer. Scheduling a reconnect in 2000ms`), so the three services do not need `depends_on`.
@@ -224,7 +224,7 @@ docker compose up -d --wait
 Reproduced tree (five source files, zero violations):
 
 ```text
-frontend/src/
+courses-frontend/src/
 ├── app/
 │   ├── index.css
 │   └── main.tsx                 # imports @/pages/home
@@ -256,7 +256,7 @@ Verified behaviours:
 - alias deep import into a slice (`pages/admin` → `@/pages/home/ui/HomePage`) → two errors: `fsd/forbidden-imports` (cross-import) and `fsd/no-public-api-sidestep` (`Forbidden sidestep of public API when importing from "@/pages/home/ui/HomePage"`), exit 1.
 - **Gap:** a deep import into a `shared` segment (`@/shared/ui/AppShell`) is **not** flagged, relative or aliased. `no-public-api-sidestep` covers slices; `public-api` only requires the `index.ts` to exist. Cover this by review, or extend the config later.
 
-### Pattern 5: `:frontend` as a Gradle module (verified)
+### Pattern 5: `:courses-frontend` as a Gradle module (verified)
 
 ```kotlin
 plugins { base }
@@ -296,16 +296,16 @@ tasks.named("check") { dependsOn(lintFsd, formatCheck) }
 
 - `base` is required: without it `assemble` does not exist (reproduced failure).
 - Use `tasks.register<Exec>("name")`, **not** `val x by tasks.registering(Exec::class)`: Gradle 9.9 emits `The 'val name by registering(Type::class) { }' property delegate syntax has been deprecated. This is scheduled to be removed in Gradle 10.`
-- `processResources` in `api`:
+- `processResources` in `courses-api`:
 
 ```kotlin
 tasks.named<ProcessResources>("processResources") {
-    dependsOn(":frontend:assembleFrontend")
-    from(project(":frontend").layout.projectDirectory.dir("dist")) { into("static") }
+    dependsOn(":courses-frontend:assembleFrontend")
+    from(project(":courses-frontend").layout.projectDirectory.dir("dist")) { into("static") }
 }
 ```
 
-Verified jar contents after a single `./gradlew :api:bootJar`:
+Verified jar contents after a single `./gradlew :courses-api:bootJar`:
 
 ```text
 BOOT-INF/classes/static/index.html
@@ -330,16 +330,16 @@ and `GET http://localhost:8080/` returned the generated `index.html` with `<scri
 ├── .github/workflows/{ci.yml,pr-title.yml}
 ├── scripts/{format.sh,format-check.sh,setup-tooling.sh,smoke-stack.sh}
 ├── docs/tooling.md
-├── platform/build.gradle.kts
-├── domain/build.gradle.kts
-├── write/
+├── courses-platform/build.gradle.kts
+├── courses-domain/build.gradle.kts
+├── courses-write/
 │   ├── build.gradle.kts
-│   └── src/main/kotlin/io/github/aanbrn/showcase/WriteApplication.kt
+│   └── src/main/kotlin/io/github/aanbrn/courses/WriteApplication.kt
 │   └── src/main/resources/application.yml
 │   └── src/test/kotlin/... (unit + @Tag("integration"))
-├── read/  … ReadApplication.kt
-├── api/   … ApiApplication.kt, static resources from :frontend
-└── frontend/
+├── courses-read/  … ReadApplication.kt
+├── courses-api/   … ApiApplication.kt, static resources from :courses-frontend
+└── courses-frontend/
     ├── build.gradle.kts
     ├── package.json, package-lock.json, tsconfig*.json, vite.config.ts
     ├── steiger.config.js, .prettierignore, index.html
@@ -348,8 +348,8 @@ and `GET http://localhost:8080/` returned the generated `index.html` with `<scri
 
 ### Anti-Patterns to Avoid
 
-- **Applying the Spring Boot plugin to `platform`, `domain` or `frontend`.** Only the three services may have `bootRun`/`bootJar`; otherwise `./gradlew bootRun --parallel` launches non-apps.
-- **`implementation(project(":platform"))`.** It is a platform, not a library — variant resolution fails.
+- **Applying the Spring Boot plugin to `courses-platform`, `courses-domain` or `courses-frontend`.** Only the three services may have `bootRun`/`bootJar`; otherwise `./gradlew bootRun --parallel` launches non-apps.
+- **`implementation(project(":courses-platform"))`.** It is a platform, not a library — variant resolution fails.
 - **Duplicating versions at call sites.** Every dependency version lives in the catalog or, better, nowhere (BOM-managed).
 - **Running `npm install` inside Gradle.** Use `npm ci`; `install` rewrites the lockfile and makes builds non-reproducible.
 - **Creating empty FSD layers to "look complete".** steiger's `insignificant-slice`/`no-segmentless-slices` will flag placeholders, and the fix will be disabling rules rather than fixing architecture.
@@ -360,7 +360,7 @@ and `GET http://localhost:8080/` returned the generated `index.html` with `<scri
 
 | Problem | Don't Build | Use Instead | Why |
 |---|---|---|---|
-| Dependency version alignment across 6 modules | Hand-written `versions` blocks per module | Version catalog + `:platform` `java-platform` | Gradle's platform semantics propagate `(c)` constraints transitively; manual pinning drifts silently |
+| Dependency version alignment across 6 modules | Hand-written `versions` blocks per module | Version catalog + `:courses-platform` `java-platform` | Gradle's platform semantics propagate `(c)` constraints transitively; manual pinning drifts silently |
 | Running npm from Gradle | A custom Node downloader / shell script | `Exec` tasks (`npm ci`, `npm run build`) + `setup-node` in CI | Two lines of configuration; Node is already a documented prerequisite |
 | FSD boundary checking | Hand-rolled import-graph script | `steiger` + `@feature-sliced/steiger-plugin` | 20 rules maintained upstream, including alias-aware sidestep detection |
 | Kotlin formatting | Manual `.editorconfig` enforcement in CI | Spotless `ktlint()` | `spotlessCheck` is already wired into `check`; ktlint reads `.editorconfig` |
@@ -396,7 +396,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "axon5-dcb-showcase"
+rootProject.name = "axon5-dcb-courses"
 include("platform", "domain", "write", "read", "api", "frontend")
 ```
 
@@ -429,9 +429,9 @@ spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 ```
 
-Boot-managed artifacts (`spring-boot-starter-webmvc`, `-actuator`, `-test`, `reactor-core`, `postgresql`, `flyway-*`, …) are deliberately **not** in the catalog — they take their version from `:platform`. Catalog entries only exist where the BOM does not manage the version.
+Boot-managed artifacts (`spring-boot-starter-webmvc`, `-actuator`, `-test`, `reactor-core`, `postgresql`, `flyway-*`, …) are deliberately **not** in the catalog — they take their version from `:courses-platform`. Catalog entries only exist where the BOM does not manage the version.
 
-The frontend tool versions live in `frontend/package.json` (npm owns them), not in the catalog; `node`/`prettier`/`steiger` entries above are documentation of the pin, not consumed by Gradle.
+The frontend tool versions live in `courses-frontend/package.json` (npm owns them), not in the catalog; `node`/`prettier`/`steiger` entries above are documentation of the pin, not consumed by Gradle.
 
 ### `build.gradle.kts` (root)
 
@@ -444,7 +444,7 @@ plugins {
 }
 
 allprojects {
-    group = "io.github.aanbrn.showcase"
+    group = "io.github.aanbrn.courses"
     version = "0.1.0-SNAPSHOT"
 }
 
@@ -474,7 +474,7 @@ Execution failed for task ':lib:spotlessKotlinCheck'
   Run './gradlew spotlessApply' to fix all violations.
 ```
 
-The `subprojects { plugins.withId(...) }` form is required: applying Spotless unconditionally to `platform` (a `java-platform`) and `frontend` (no Kotlin) creates no-op tasks and a misleading failure surface.
+The `subprojects { plugins.withId(...) }` form is required: applying Spotless unconditionally to `courses-platform` (a `java-platform`) and `courses-frontend` (no Kotlin) creates no-op tasks and a misleading failure surface.
 
 ### `gradle.properties`
 
@@ -486,11 +486,11 @@ kotlin.code.style=official
 
 Do **not** enable `org.gradle.configuration-cache` in Phase 1 — three long-running `bootRun` tasks are already the most fragile part of the developer loop, and a toolchain change that fails late is not worth the speed.
 
-### `platform/build.gradle.kts`
+### `courses-platform/build.gradle.kts`
 
 Shown in § Pattern 2.
 
-### `domain/build.gradle.kts`
+### `courses-domain/build.gradle.kts`
 
 ```kotlin
 plugins { alias(libs.plugins.kotlin.jvm) }
@@ -498,14 +498,14 @@ plugins { alias(libs.plugins.kotlin.jvm) }
 kotlin { jvmToolchain(21) }
 
 dependencies {
-    implementation(platform(project(":platform")))
+    implementation(platform(project(":courses-platform")))
     // Phase 3 adds axon-messaging/annotations and the message contract.
 }
 ```
 
 An empty Kotlin library compiles cleanly and keeps Phase 3's "freeze the contract" honest.
 
-### `write/build.gradle.kts`
+### `courses-write/build.gradle.kts`
 
 ```kotlin
 plugins {
@@ -517,8 +517,8 @@ plugins {
 kotlin { jvmToolchain(21) }
 
 dependencies {
-    implementation(platform(project(":platform")))
-    implementation(project(":domain"))
+    implementation(platform(project(":courses-platform")))
+    implementation(project(":courses-domain"))
     implementation(libs.axoniq.spring.boot.starter)
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
@@ -542,11 +542,11 @@ tasks.register<Test>("integrationTest") {
 
 No datasource, no JPA, no Flyway — and none of them even exist in another module yet. `spring-boot-starter-webmvc` is present only so the actuator ports (8081/8082) exist and can be polled.
 
-`read/build.gradle.kts` and `api/build.gradle.kts` are identical except `server.port`, the app class, and `api` adding the `processResources` copy from `:frontend`.
+`courses-read/build.gradle.kts` and `courses-api/build.gradle.kts` are identical except `server.port`, the app class, and `courses-api` adding the `processResources` copy from `:courses-frontend`.
 
 ### `application.yml` (one per service)
 
-`write` (port 8081; `read` identical with name/port swapped):
+`courses-write` (port 8081; `courses-read` identical with name/port swapped):
 
 ```yaml
 spring:
@@ -567,7 +567,7 @@ management:
         include: health,info
 ```
 
-`api` (port 8080) adds nothing else in Phase 1 — the SPA arrives as classpath `static/`.
+`courses-api` (port 8080) adds nothing else in Phase 1 — the SPA arrives as classpath `static/`.
 
 Verified: `axon.axonserver.servers` is the documented property key `[CITED: docs.axoniq.io — axon.axonserver.servers=localhost:8124]`; the default when omitted is `localhost:8124`. `axon.axonserver.enabled=false` disables the connector `[CITED: same page]`. The starter's auto-configuration is gated on that property `[VERIFIED: string constant axon.axonserver.enabled present in AxonServerAutoConfiguration and AxonServerActuatorAutoConfiguration]`.
 
@@ -596,15 +596,15 @@ services:
   postgres:
     image: postgres:18.6
     environment:
-      POSTGRES_DB: enrollment
-      POSTGRES_USER: enrollment
-      POSTGRES_PASSWORD: enrollment
+      POSTGRES_DB: courses
+      POSTGRES_USER: courses
+      POSTGRES_PASSWORD: courses
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U enrollment -d enrollment"]
+      test: ["CMD-SHELL", "pg_isready -U courses -d courses"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -620,7 +620,7 @@ Verified on Compose v2.32.1: `docker compose up -d --wait` reports both containe
 - `axoniq_axonserver_standalone: "true"` is **mandatory on a fresh volume** (§ Pitfall P1).
 - The Axon Server image contains `curl`, `wget`, `bash` and Java 21 (`/opt/java/openjdk/bin/java`), so the healthcheck needs no extra tooling.
 - PostgreSQL 18's `PGDATA` is `/var/lib/postgresql/18/docker`; mounting at `/var/lib/postgresql` is the documented layout (§ Pitfall P2).
-- `POSTGRES_PASSWORD: enrollment` is a local-only credential. Never reuse it; note in `docs/` that it is not a secret and not a production default.
+- `POSTGRES_PASSWORD: courses` is a local-only credential. Never reuse it; note in `docs/` that it is not a secret and not a production default.
 
 ### `.github/workflows/ci.yml` — build job
 
@@ -643,7 +643,7 @@ Keep the job id `build`. Add Node, Compose, and the integration task; keep `dock
         with:
           node-version: '24.20.0'
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: courses-frontend/package-lock.json
 
       - name: Start infrastructure
         run: docker compose up -d --wait
@@ -752,10 +752,10 @@ and `docker run --rm postgres:18 printenv PGDATA` → `/var/lib/postgresql/18/do
 **Evidence:** `Adding dependencies to platforms is not allowed by default. Most likely you want to add constraints instead. … Found dependencies in the 'api' configuration.`
 **Fix:** `javaPlatform { allowDependencies() }` + `api(platform(bom))` inside `dependencies`.
 
-### P4: `project(":platform")` is not a library
+### P4: `project(":courses-platform")` is not a library
 
-**Evidence:** `No matching variant of project ':platform' was found … Incompatible because this component declares a platform and the consumer needed a library`.
-**Fix:** `implementation(platform(project(":platform")))`.
+**Evidence:** `No matching variant of project ':courses-platform' was found … Incompatible because this component declares a platform and the consumer needed a library`.
+**Fix:** `implementation(platform(project(":courses-platform")))`.
 
 ### P5: Axon actuator health is not a registration signal
 
@@ -766,7 +766,7 @@ and `docker run --rm postgres:18 printenv PGDATA` → `/var/lib/postgresql/18/do
 ### P6: Kotlin version skew from Boot's BOM
 
 **Evidence:** `spring-boot-dependencies:4.1.2` imports `kotlin-bom` with `kotlin.version = 2.3.21`; the resolved graph shows `kotlin-stdlib:2.3.21 -> 2.4.21 (c)` while a versionless `kotlin-reflect` would stay at 2.3.21.
-**Fix:** `kotlin-reflect` declares `version.ref = "kotlin"`; if any other Kotlin artifact appears, pin it in `:platform` constraints.
+**Fix:** `kotlin-reflect` declares `version.ref = "kotlin"`; if any other Kotlin artifact appears, pin it in `:courses-platform` constraints.
 
 ### P7: TypeScript 7 removed `baseUrl`
 
@@ -777,7 +777,7 @@ and `docker run --rm postgres:18 printenv PGDATA` → `/var/lib/postgresql/18/do
 
 **What goes wrong:** assumptions about ordering or cleanup.
 **Evidence:** two projects' tasks both printed their start timestamp as `1794351445347` and `--parallel` ran them concurrently with no deprecation warning on Gradle 9.9.0.
-**Facts to encode:** `--parallel` parallelises across **projects**, not within one; only `write`/`read`/`api` have `bootRun`, so `./gradlew bootRun --parallel` launches exactly three; Ctrl-C stops the Gradle run, but a script that kills only the Gradle PID can orphan the JVMs (use a process group).
+**Facts to encode:** `--parallel` parallelises across **projects**, not within one; only `courses-write`/`courses-read`/`courses-api` have `bootRun`, so `./gradlew bootRun --parallel` launches exactly three; Ctrl-C stops the Gradle run, but a script that kills only the Gradle PID can orphan the JVMs (use a process group).
 
 ### P9: Port collisions are loud but late
 
@@ -789,9 +789,9 @@ and `docker run --rm postgres:18 printenv PGDATA` → `/var/lib/postgresql/18/do
 **Evidence:** a clean five-file tree passes; an upward import fails; an alias deep import into a page slice fails **twice**; a deep import into `shared/ui` passes silently.
 **Fix:** keep the tree minimal and real; treat `shared` sidesteps as a review concern; optionally add a later rule/CI grep.
 
-### P11: `:frontend` has no lifecycle tasks by default
+### P11: `:courses-frontend` has no lifecycle tasks by default
 
-**Evidence:** `Task with name 'assemble' not found in project ':frontend'.`
+**Evidence:** `Task with name 'assemble' not found in project ':courses-frontend'.`
 **Fix:** `plugins { base }`.
 
 ### P12: Gradle 9.9 deprecates the Kotlin-DSL delegated registrar
@@ -818,7 +818,7 @@ Shutdown scheduled at 2026-11-11T11:09:17.178Z.
 
 ### P15: App-class placement and test discovery
 
-**What to do:** put each app class in the module's root package (`io.github.aanbrn.showcase.WriteApplication`, `ReadApplication`, `ApiApplication`) so component scanning covers the module's own feature packages, and annotate the integration test with `@SpringBootTest(classes = [WriteApplication::class])` rather than relying on package-walk discovery.
+**What to do:** put each app class in the module's root package (`io.github.aanbrn.courses.WriteApplication`, `ReadApplication`, `ApiApplication`) so component scanning covers the module's own feature packages, and annotate the integration test with `@SpringBootTest(classes = [WriteApplication::class])` rather than relying on package-walk discovery.
 **Why:** each module is a separate jar, so two `@SpringBootApplication` classes in the same package only coexist because they never share a classpath — an accidental inter-module dependency makes discovery ambiguous. `[ASSUMED]` — not reproduced, because no module currently depends on another; the explicit `classes =` keeps it true by construction.
 
 ### P16: `npm ci` without a lockfile
@@ -830,7 +830,7 @@ Shutdown scheduled at 2026-11-11T11:09:17.178Z.
 ### Integration test that proves registration (the PLAT-01 gate)
 
 ```kotlin
-package io.github.aanbrn.showcase.write
+package io.github.aanbrn.courses.write
 
 import io.axoniq.framework.axonserver.connector.api.AxonServerConnectionManager
 import org.junit.jupiter.api.Tag
@@ -864,7 +864,7 @@ class AxonServerRegistrationIT {
 ### Driver-free infrastructure reachability test
 
 ```kotlin
-package io.github.aanbrn.showcase.write
+package io.github.aanbrn.courses.write
 
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
@@ -895,11 +895,11 @@ class InfrastructureReachabilityTest {
 }
 ```
 
-Deliberately no JDBC driver in Phase 1 — the PostgreSQL driver belongs to `read` and lands with the datasource in Phase 5. TCP reachability is enough to prove the container is up.
+Deliberately no JDBC driver in Phase 1 — the PostgreSQL driver belongs to `courses-read` and lands with the datasource in Phase 5. TCP reachability is enough to prove the container is up.
 
 ### Playwright MCP headless verification (E2E-01)
 
-Preconditions: `docker compose up -d --wait` and the three services running (`./gradlew bootRun --parallel`); the SPA is served by `api` on `:8080`.
+Preconditions: `docker compose up -d --wait` and the three services running (`./gradlew bootRun --parallel`); the SPA is served by `courses-api` on `:8080`.
 
 **No change to `opencode.jsonc` is required.** The tracked entry at `opencode.jsonc:13-16` — `"mcp" → "servers" → "playwright" → {type: "local", command: ["npx","-y","@playwright/mcp@0.0.85","--headless"]}` — validates against the published OpenCode schema (`mcp.servers.*` accepts `Mcp.LocalConfigEncoded`, which requires `type` and `command`), and `0.0.85` is the registry's current `latest`. The Phase 1 deliverable is the recorded proof, not an edit.
 
@@ -912,12 +912,12 @@ Reproduced result on this machine:
 
 ```yaml
 - generic [ref=e3]:
-  - banner [ref=e4]: Axon 5 DCB Showcase
+  - banner [ref=e4]: Axon 5 DCB Courses
   - main [ref=e5]:
     - heading "Course catalog" [level=1] [ref=e6]
 ```
 
-with `Page Title: Axon 5 DCB Showcase`. The snapshot does **not** surface `data-testid` (it is an accessibility tree); to assert a test id, use `browser_evaluate` with `document.querySelector('[data-testid="app-shell"]') !== null`. For Phase 1 the heading assertion is sufficient and is the one to record in the verification note.
+with `Page Title: Axon 5 DCB Courses`. The snapshot does **not** surface `data-testid` (it is an accessibility tree); to assert a test id, use `browser_evaluate` with `document.querySelector('[data-testid="app-shell"]') !== null`. For Phase 1 the heading assertion is sufficient and is the one to record in the verification note.
 
 **`.gitignore` gap found by running it:** the MCP server wrote its snapshots to `.playwright-mcp/` in the repository root, which is not ignored (`.gitignore` has `.playwright/` but not `.playwright-mcp/`). Phase 1 must add `.playwright-mcp/` to `.gitignore`, otherwise the first verification run leaves untracked noise in `git status`.
 
@@ -939,7 +939,7 @@ If the first navigation fails with a missing-browser error, run `npx playwright 
 }
 ```
 
-`frontend/.prettierignore` must list `dist/`, `node_modules/`, `playwright-report/`, `test-results/`. Prettier resolves the root `.prettierrc.json` from `frontend/` (printWidth 100, singleQuote, trailingComma all), and the root `.prettierignore` deliberately excludes `frontend/` so the repo-level script never double-formats it.
+`courses-frontend/.prettierignore` must list `dist/`, `node_modules/`, `playwright-report/`, `test-results/`. Prettier resolves the root `.prettierrc.json` from `courses-frontend/` (printWidth 100, singleQuote, trailingComma all), and the root `.prettierignore` deliberately excludes `courses-frontend/` so the repo-level script never double-formats it.
 
 ### Vite config with the alias and the dev proxy
 
@@ -986,7 +986,7 @@ export default defineConfig({
 | A4 | A five-file FSD tree stays adequate when Phase 2 adds a login page | Pattern 4 | Adding a second page is fine (pages may have one reference); if not, add the missing layer with its first real slice |
 | A5 | Named volumes survive `docker compose down` but not `down -v` | compose.yaml | Read models lost between runs if someone uses `-v`; documented behaviour of Compose, not this project |
 | A6 | The lockfile generated at scaffold time is committed and stable | Pattern 5 | `npm ci` fails in CI; regenerate with `npm install` once |
-| A7 | Naming each app class `io.github.aanbrn.showcase.{Write,Read,Api}Application` avoids test-discovery ambiguity without further configuration | Pitfall P15 | Explicit `@SpringBootTest(classes = [...])` makes it moot; adjust package names if the verifier prefers `…showcase.write` |
+| A7 | Naming each app class `io.github.aanbrn.courses.{Write,Read,Api}Application` avoids test-discovery ambiguity without further configuration | Pitfall P15 | Explicit `@SpringBootTest(classes = [...])` makes it moot; adjust package names if the verifier prefers `…courses.write` |
 
 **If this table is short, that is the point:** everything else was executed and its output pasted above.
 
@@ -1002,7 +1002,7 @@ export default defineConfig({
    - Resolution: Phase 2 introduces either `HashRouter` or a small forward controller once the login route exists. Do not add a `/**` forward in Phase 1 — it would swallow `/actuator`.
 
 3. **Where the shared `integrationTest` convention lives once a second module needs it.**
-   - Resolution: Phase 1 keeps the single tagged test in `write`; Phase 2 promotes it to a `buildSrc`/convention plugin if `read` or `api` needs its own.
+   - Resolution: Phase 1 keeps the single tagged test in `courses-write`; Phase 2 promotes it to a `buildSrc`/convention plugin if `courses-read` or `courses-api` needs its own.
 
 4. **Empty FSD layer directories.**
    - Resolution: do not create them. Record in the plan and the frontend README that `widgets`/`features`/`entities` appear with their first slice, so the verifier checks the lint gate rather than `ls`.
@@ -1013,7 +1013,7 @@ export default defineConfig({
 |---|---|---|---|---|
 | JDK 21 | Kotlin/Boot toolchain | ✓ | Temurin 21.0.13 (default `java` is 25.0.5) | Toolchain auto-detect; foojay plugin for other machines |
 | Gradle | Wrapper generation | ✓ | 9.9.0 local | Wrapper 9.7.0 downloads on first run |
-| Node.js | `:frontend`, steiger, MCP | ✓ | 24.20.0 | — |
+| Node.js | `:courses-frontend`, steiger, MCP | ✓ | 24.20.0 | — |
 | npm | frontend install/build | ✓ | 11.19.0 | — |
 | Docker Engine | Compose stack | ✓ | 29.9.3 | — |
 | Docker Compose | `up -d --wait` | ✓ | v2.32.1 | `up -d` + manual wait loop |
@@ -1044,15 +1044,15 @@ export default defineConfig({
 | Criterion | Behavior | Test Type | Automated Command | Exists? |
 |---|---|---|---|---|
 | 1 (PLAT-01) | Compose stack up; three services start; all three register | smoke | `./scripts/smoke-stack.sh` + `./gradlew integrationTest` | ❌ Wave 0 |
-| 1 (PLAT-01) | `write` registers with Axon Server | integration | `./gradlew :write:integrationTest --tests '*AxonServerRegistrationIT'` | ❌ Wave 0 |
-| 1 (PLAT-01) | Axon Server and PostgreSQL are reachable | integration | `./gradlew :write:integrationTest --tests '*InfrastructureReachabilityTest'` | ❌ Wave 0 |
-| 2 (TOPO-01) | Three independent bootJars | build | `./gradlew build` then assert `write/build/libs/*.jar`, `read/…`, `api/…` | ❌ Wave 0 (assertion step) |
-| 3 (TOPO-04) | One build produces SPA + jars | build | `./gradlew build`; assert `frontend/dist/index.html` and `unzip -l api/build/libs/*.jar \| grep BOOT-INF/classes/static/index.html` | ❌ Wave 0 (assertion step) |
+| 1 (PLAT-01) | `courses-write` registers with Axon Server | integration | `./gradlew :courses-write:integrationTest --tests '*AxonServerRegistrationIT'` | ❌ Wave 0 |
+| 1 (PLAT-01) | Axon Server and PostgreSQL are reachable | integration | `./gradlew :courses-write:integrationTest --tests '*InfrastructureReachabilityTest'` | ❌ Wave 0 |
+| 2 (TOPO-01) | Three independent bootJars | build | `./gradlew build` then assert `courses-write/build/libs/*.jar`, `courses-read/…`, `courses-api/…` | ❌ Wave 0 (assertion step) |
+| 3 (TOPO-04) | One build produces SPA + jars | build | `./gradlew build`; assert `courses-frontend/dist/index.html` and `unzip -l courses-api/build/libs/*.jar \| grep BOOT-INF/classes/static/index.html` | ❌ Wave 0 (assertion step) |
 | 4 (PLAT-05) | CI starts infra and runs integration tests in job `build` | CI | workflow step names visible in the run; `git grep -n "integrationTest" .github/workflows/ci.yml` | ❌ Wave 0 |
 | 5 (QUAL-01) | Kotlin formatting gate | unit/build | `./gradlew spotlessCheck` (also inside `build`) | ✅ after Spotless lands |
-| 5 (QUAL-01) | Frontend formatting | build | `./gradlew :frontend:check` → `npm run format:check` | ❌ Wave 0 |
+| 5 (QUAL-01) | Frontend formatting | build | `./gradlew :courses-frontend:check` → `npm run format:check` | ❌ Wave 0 |
 | 5 (QUAL-01) | Repo formatting | CI | `./scripts/format-check.sh` | ✅ exists |
-| 6 (FE-01/FE-02) | FSD passes on the scaffold | build | `./gradlew :frontend:lintFsd` → `npm run lint:fsd` | ❌ Wave 0 |
+| 6 (FE-01/FE-02) | FSD passes on the scaffold | build | `./gradlew :courses-frontend:lintFsd` → `npm run lint:fsd` | ❌ Wave 0 |
 | 6 (FE-01/FE-02) | Gate fails on a violation | manual negative control | add `import { HomePage } from '@/pages/home'` to `shared/ui/AppShell.tsx`, run `npm run lint:fsd`, expect exit 1, revert | ❌ one-off |
 | 7 (E2E-01) | MCP opens the SPA headless | manual/agent | `browser_navigate http://localhost:8080/` + `browser_snapshot`, expect heading "Course catalog" | ❌ manual by design |
 
@@ -1064,12 +1064,12 @@ export default defineConfig({
 
 ### Wave 0 Gaps
 
-- [ ] `frontend/package.json`, `package-lock.json`, `tsconfig*.json`, `vite.config.ts`, `steiger.config.js`, `.prettierignore`, `index.html`, `src/app`, `src/pages/home`, `src/shared/ui`
-- [ ] `frontend/build.gradle.kts` with `base` + `npmInstall` / `assembleFrontend` / `lintFsd` / `formatCheck`
-- [ ] `write/src/test/kotlin/.../AxonServerRegistrationIT.kt` and `InfrastructureReachabilityTest.kt`
+- [ ] `courses-frontend/package.json`, `package-lock.json`, `tsconfig*.json`, `vite.config.ts`, `steiger.config.js`, `.prettierignore`, `index.html`, `src/app`, `src/pages/home`, `src/shared/ui`
+- [ ] `courses-frontend/build.gradle.kts` with `base` + `npmInstall` / `assembleFrontend` / `lintFsd` / `formatCheck`
+- [ ] `courses-write/src/test/kotlin/.../AxonServerRegistrationIT.kt` and `InfrastructureReachabilityTest.kt`
 - [ ] `integrationTest` task + `excludeTags("integration")` on `test`
 - [ ] `compose.yaml` with the standalone flag, the PG18 volume path and both healthchecks
-- [ ] `platform/`, `domain/`, `write/`, `read/`, `api/` build files and app classes
+- [ ] `courses-platform/`, `courses-domain/`, `courses-write/`, `courses-read/`, `courses-api/` build files and app classes
 - [ ] `gradle/wrapper/gradle-wrapper.properties` pinned to 9.7.0
 - [ ] `scripts/smoke-stack.sh`
 - [ ] CI `build` job steps for Node, Compose and `integrationTest`
@@ -1078,7 +1078,7 @@ export default defineConfig({
 
 | Check | In CI now | Why |
 |---|---|---|
-| `./gradlew build` (incl. `spotlessCheck`, `:frontend:check`) | Yes | QUAL-01, TOPO-01, TOPO-04, FE-02 |
+| `./gradlew build` (incl. `spotlessCheck`, `:courses-frontend:check`) | Yes | QUAL-01, TOPO-01, TOPO-04, FE-02 |
 | `./gradlew integrationTest` after compose up | Yes | PLAT-05 |
 | `scripts/format-check.sh` | Yes (existing `format` job) | QUAL-01 |
 | `scripts/smoke-stack.sh` | Optional — add once stable | It duplicates `integrationTest` for one criterion and adds minutes; keep it local until it proves non-flaky |
@@ -1095,7 +1095,7 @@ export default defineConfig({
 |---|---|---|
 | V2 Authentication | No | No login in Phase 1 (Phase 2) |
 | V3 Session Management | No | No sessions (Phase 2) |
-| V4 Access Control | Partial | Actuator exposure limited to `health,info`; no management endpoints on a public interface; `write`/`read` are developer-facing only |
+| V4 Access Control | Partial | Actuator exposure limited to `health,info`; no management endpoints on a public interface; `courses-write`/`courses-read` are developer-facing only |
 | V5 Input Validation | No | No user input; the SPA shell has no forms |
 | V6 Cryptography | No | Nothing to encrypt; no secrets generated |
 | V14 Configuration / Supply chain (L1 hygiene) | Yes | Pinned image tags, SHA-pinned actions, no credentials in the repo, `.env.example` only |

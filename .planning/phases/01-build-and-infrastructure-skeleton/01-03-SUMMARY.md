@@ -12,7 +12,7 @@ provides:
   - "frontend Gradle module driven by npm Exec tasks (npmInstall, assembleFrontend, lintFsd, formatCheck) under the base plugin"
   - "React 19.3.1 / Vite 8.3.7 / TypeScript 7.0.2 SPA scaffolded into the minimal FSD tree (app, pages/home, shared/ui)"
   - "FSD gate: steiger 0.10.0 --fail-on-warnings plus an oxlint no-restricted-imports rule that closes steiger's shared-segment deep-import gap"
-  - "Prettier format:check wired into :frontend:check, lockfile committed for npm ci"
+  - "Prettier format:check wired into :courses-frontend:check, lockfile committed for npm ci"
   - "Vite dev server on :5173 with /api proxied to :8080"
 
 affects: [01-04, 01-05, 01-06, phase-2, phase-5, phase-8]
@@ -38,24 +38,24 @@ tech-stack:
 
 key-files:
   created:
-    - frontend/build.gradle.kts
-    - frontend/package.json
-    - frontend/package-lock.json
-    - frontend/steiger.config.js
-    - frontend/.oxlintrc.json
-    - frontend/.prettierignore
-    - frontend/.gitignore
-    - frontend/index.html
-    - frontend/vite.config.ts
-    - frontend/tsconfig.json
-    - frontend/tsconfig.app.json
-    - frontend/tsconfig.node.json
-    - frontend/src/app/main.tsx
-    - frontend/src/app/index.css
-    - frontend/src/pages/home/index.ts
-    - frontend/src/pages/home/ui/HomePage.tsx
-    - frontend/src/shared/ui/index.ts
-    - frontend/src/shared/ui/AppShell.tsx
+    - courses-frontend/build.gradle.kts
+    - courses-frontend/package.json
+    - courses-frontend/package-lock.json
+    - courses-frontend/steiger.config.js
+    - courses-frontend/.oxlintrc.json
+    - courses-frontend/.prettierignore
+    - courses-frontend/.gitignore
+    - courses-frontend/index.html
+    - courses-frontend/vite.config.ts
+    - courses-frontend/tsconfig.json
+    - courses-frontend/tsconfig.app.json
+    - courses-frontend/tsconfig.node.json
+    - courses-frontend/src/app/main.tsx
+    - courses-frontend/src/app/index.css
+    - courses-frontend/src/pages/home/index.ts
+    - courses-frontend/src/pages/home/ui/HomePage.tsx
+    - courses-frontend/src/shared/ui/index.ts
+    - courses-frontend/src/shared/ui/AppShell.tsx
   modified: []
 
 key-decisions:
@@ -73,7 +73,7 @@ requirements-completed: [FE-01, FE-02, QUAL-01]
 
 coverage:
   - id: D1
-    description: "SPA builds to frontend/dist with a hashed JS/CSS bundle and the showcase title"
+    description: "SPA builds to courses-frontend/dist with a hashed JS/CSS bundle and the courses title"
     requirement: "FE-01"
     verification:
       - kind: automated_ui
@@ -100,7 +100,7 @@ coverage:
         status: pass
     human_judgment: false
   - id: D4
-    description: "Prettier format:check passes over the SPA and is part of :frontend:check"
+    description: "Prettier format:check passes over the SPA and is part of :courses-frontend:check"
     requirement: "QUAL-01"
     verification:
       - kind: other
@@ -112,7 +112,7 @@ coverage:
     requirement: "QUAL-01"
     verification:
       - kind: other
-        ref: "./gradlew build --no-daemon#:frontend:assemble + :frontend:check executed"
+        ref: "./gradlew build --no-daemon#:courses-frontend:assemble + :courses-frontend:check executed"
         status: pass
     human_judgment: false
 
@@ -140,14 +140,14 @@ fails on oxlint `no-restricted-imports` — the case steiger 0.10.0 silently all
 
 ## Accomplishments
 
-- `npm --prefix frontend run build` (`tsc -b && vite build`) produces `frontend/dist/index.html`,
+- `npm --prefix frontend run build` (`tsc -b && vite build`) produces `courses-frontend/dist/index.html`,
   `dist/assets/index-B7Fg37H_.js` and `dist/assets/index-Clt-HEf6.css`.
 - The source tree is exactly five FSD files across three layers — `app`, `pages/home`, `shared/ui` —
   with a public `index.ts` per slice and no placeholder `widgets`/`features`/`entities` folders.
 - `npm --prefix frontend run lint:fsd` runs `steiger ./src --fail-on-warnings && oxlint` and exits 0
   (`✔ No problems found!`).
 - `npm --prefix frontend run format:check` exits 0 after one sanctioned `npm run format` pass.
-- `./gradlew :frontend:assemble :frontend:check` and the full `./gradlew build --no-daemon` both
+- `./gradlew :courses-frontend:assemble :courses-frontend:check` and the full `./gradlew build --no-daemon` both
   succeed; `npm ci` runs inside Gradle, never `npm install`.
 
 ## Task Commits
@@ -161,30 +161,30 @@ fails on oxlint `no-restricted-imports` — the case steiger 0.10.0 silently all
 
 ## Files Created/Modified
 
-- `frontend/build.gradle.kts` — `base` plugin; `npmInstall` (`npm ci`), `assembleFrontend`
+- `courses-frontend/build.gradle.kts` — `base` plugin; `npmInstall` (`npm ci`), `assembleFrontend`
   (`npm run build`), `lintFsd` (`npm run lint:fsd`), `formatCheck` (`npm run format:check`);
   `assemble` → `assembleFrontend`, `check` → `lintFsd` + `formatCheck`.
-- `frontend/package.json` — scripts `dev`/`build`/`preview`/`format`/`format:check`/`lint`/`lint:fsd`;
+- `courses-frontend/package.json` — scripts `dev`/`build`/`preview`/`format`/`format:check`/`lint`/`lint:fsd`;
   devDependencies `steiger@0.10.0`, `@feature-sliced/steiger-plugin@0.8.2`, `prettier@3.9.10`,
   `oxlint@^1.90.0`.
-- `frontend/package-lock.json` — committed lockfile (84 KB) so `npm ci` is reproducible.
-- `frontend/steiger.config.js` — `defineConfig([...fsd.configs.recommended])`.
-- `frontend/.oxlintrc.json` — template React rules plus `no-restricted-imports` with
+- `courses-frontend/package-lock.json` — committed lockfile (84 KB) so `npm ci` is reproducible.
+- `courses-frontend/steiger.config.js` — `defineConfig([...fsd.configs.recommended])`.
+- `courses-frontend/.oxlintrc.json` — template React rules plus `no-restricted-imports` with
   `patterns[0].regex = "^@/[^/]+/[^/]+/.+"` and the message "Import from the slice's public API
   (index.ts), not its internals".
-- `frontend/.prettierignore` — `dist/`, `node_modules/`, `playwright-report/`, `test-results/`,
+- `courses-frontend/.prettierignore` — `dist/`, `node_modules/`, `playwright-report/`, `test-results/`,
   `package-lock.json`.
-- `frontend/vite.config.ts` — `resolve.alias['@']`, `build.outDir = 'dist'`, `server.port = 5173`,
+- `courses-frontend/vite.config.ts` — `resolve.alias['@']`, `build.outDir = 'dist'`, `server.port = 5173`,
   `server.proxy['/api'] = 'http://localhost:8080'`.
-- `frontend/tsconfig.app.json` — `paths: { "@/*": ["./src/*"] }`, no `baseUrl`.
-- `frontend/index.html` — `<title>Axon 5 DCB Showcase</title>`, entry `/src/app/main.tsx`.
-- `frontend/src/app/main.tsx` — React root rendering `<HomePage/>`, explicit error when `#root` is
+- `courses-frontend/tsconfig.app.json` — `paths: { "@/*": ["./src/*"] }`, no `baseUrl`.
+- `courses-frontend/index.html` — `<title>Axon 5 DCB Courses</title>`, entry `/src/app/main.tsx`.
+- `courses-frontend/src/app/main.tsx` — React root rendering `<HomePage/>`, explicit error when `#root` is
   missing.
-- `frontend/src/app/index.css` — base typography and full-height `#root`.
-- `frontend/src/pages/home/index.ts` + `ui/HomePage.tsx` — `<h1>Course catalog</h1>` inside the shell.
-- `frontend/src/shared/ui/index.ts` + `AppShell.tsx` — header "Axon 5 DCB Showcase" and
+- `courses-frontend/src/app/index.css` — base typography and full-height `#root`.
+- `courses-frontend/src/pages/home/index.ts` + `ui/HomePage.tsx` — `<h1>Course catalog</h1>` inside the shell.
+- `courses-frontend/src/shared/ui/index.ts` + `AppShell.tsx` — header "Axon 5 DCB Courses" and
   `<main data-testid="app-shell">`.
-- Deleted: `frontend/.gitkeep` (placeholder from plan 01-01), and the create-vite leftovers
+- Deleted: `courses-frontend/.gitkeep` (placeholder from plan 01-01), and the create-vite leftovers
   `src/App.tsx`, `src/App.css`, `src/main.tsx`, `src/index.css`, `src/assets/`, `public/`,
   `README.md`.
 
@@ -194,16 +194,16 @@ fails on oxlint `no-restricted-imports` — the case steiger 0.10.0 silently all
 |---|---|
 | `npm --prefix frontend install` (one-time, generates the lockfile) | pass — 94 packages, 0 vulnerabilities |
 | `npm --prefix frontend run build` | pass — `dist/index.html` + hashed JS/CSS |
-| `grep -c '"baseUrl"' frontend/tsconfig.app.json` | pass — `0` (exit 1, no match) |
-| `find frontend/src -type f` | pass — exactly 6 files: app/main.tsx, app/index.css, pages/home/index.ts, pages/home/ui/HomePage.tsx, shared/ui/index.ts, shared/ui/AppShell.tsx |
+| `grep -c '"baseUrl"' courses-frontend/tsconfig.app.json` | pass — `0` (exit 1, no match) |
+| `find courses-frontend/src -type f` | pass — exactly 6 files: app/main.tsx, app/index.css, pages/home/index.ts, pages/home/ui/HomePage.tsx, shared/ui/index.ts, shared/ui/AppShell.tsx |
 | `npm --prefix frontend run lint:fsd` | pass — `✔ No problems found!`, exit 0 |
 | `npm --prefix frontend run format:check` | pass — "All matched files use Prettier code style!", exit 0 |
 | Negative control 1 — `import { HomePage } from '@/pages/home'` in `shared/ui/AppShell.tsx` | pass — exit 1, `✘ Forbidden import from higher layer "pages".` / `fsd/forbidden-imports` |
 | Negative control 2 — `import { AppShell } from '@/shared/ui/AppShell'` in `pages/home/ui/HomePage.tsx` | pass — exit 1, `eslint(no-restricted-imports): '@/shared/ui/AppShell' import is restricted from being used by a pattern` |
 | `test -z "$(git -C frontend status --porcelain -- src/shared/ui/AppShell.tsx src/pages/home/ui/HomePage.tsx)"` | pass — both controls reverted, tree clean |
 | `npm --prefix frontend ci` | pass — reproducible install from the lockfile |
-| `./gradlew :frontend:assemble :frontend:check --no-daemon` | pass — `BUILD SUCCESSFUL`, 4 tasks executed |
-| `./gradlew build --no-daemon` | pass — `:frontend:assemble` and `:frontend:check` both in the graph |
+| `./gradlew :courses-frontend:assemble :courses-frontend:check --no-daemon` | pass — `BUILD SUCCESSFUL`, 4 tasks executed |
+| `./gradlew build --no-daemon` | pass — `:courses-frontend:assemble` and `:courses-frontend:check` both in the graph |
 
 ### Negative control 1 output (upward import)
 
@@ -235,11 +235,11 @@ import the plan calls out (RESEARCH Pitfall P10). The oxlint rule added in Task 
 
 **1. [Rule 2 - Missing critical functionality] `package-lock.json` excluded from Prettier**
 - **Found during:** Task 2 (`format:check`)
-- **Issue:** `prettier --check .` inside `frontend/` would also check the 84 KB generated lockfile;
+- **Issue:** `prettier --check .` inside `courses-frontend/` would also check the 84 KB generated lockfile;
   the repo already treats lockfiles as unformatted (`**/package-lock.json` in the root
   `.prettierignore`).
-- **Fix:** `package-lock.json` added to `frontend/.prettierignore` so the gate checks authored files.
-- **Files modified:** `frontend/.prettierignore`
+- **Fix:** `package-lock.json` added to `courses-frontend/.prettierignore` so the gate checks authored files.
+- **Files modified:** `courses-frontend/.prettierignore`
 - **Verification:** `npm --prefix frontend run format:check` exits 0 and lists no lockfile.
 - **Committed in:** `94fd4f8` (Task 2 commit)
 
@@ -251,7 +251,7 @@ import the plan calls out (RESEARCH Pitfall P10). The oxlint rule added in Task 
   expected to author from scratch.
 - **Fix:** deleted every template asset and the template README, dropped the favicon `<link>` from
   `index.html`, kept the template `.oxlintrc.json` and extended it with the deep-import rule.
-- **Files modified:** `frontend/index.html`, `frontend/.oxlintrc.json`; deleted the asset folders.
+- **Files modified:** `courses-frontend/index.html`, `courses-frontend/.oxlintrc.json`; deleted the asset folders.
 - **Verification:** `find frontend -type f -not -path './node_modules/*'` lists only FSD sources and
   config; `npm run build` and `lint:fsd` both pass.
 - **Committed in:** `aedc282` (sources) and `94fd4f8` (oxlint config)
@@ -273,7 +273,7 @@ import the plan calls out (RESEARCH Pitfall P10). The oxlint rule added in Task 
 
 ### Noted, not changed
 
-- Task 1 and Task 2 both list `frontend/package.json`. The devDependencies were installed together
+- Task 1 and Task 2 both list `courses-frontend/package.json`. The devDependencies were installed together
   with the template dependencies so the lockfile could be generated once, so `package.json` and
   `package-lock.json` landed in the Task 1 commit (`aedc282`); Task 2 then added only the linter and
   Gradle wiring. No behavioural difference, no extra commit.
@@ -284,7 +284,7 @@ import the plan calls out (RESEARCH Pitfall P10). The oxlint rule added in Task 
 ---
 
 **Total deviations:** 4 auto-fixed (2 blocking, 1 missing critical functionality, 1 bug) + 1 commit-scope note.
-**Impact on plan:** none on scope — every change is inside the `frontend` module and serves the plan's
+**Impact on plan:** none on scope — every change is inside the `courses-frontend` module and serves the plan's
 own acceptance criteria.
 
 ## Threat Surface
@@ -303,16 +303,16 @@ placeholder copy flows into the UI.
 
 ## Next Phase Readiness
 
-- `:api:processResources` can copy `:frontend:dist` into `BOOT-INF/classes/static` (plan 01-04's
-  shape) — `:frontend:assembleFrontend` is the task to depend on.
+- `:courses-api:processResources` can copy `:courses-frontend:dist` into `BOOT-INF/classes/static` (plan 01-04's
+  shape) — `:courses-frontend:assembleFrontend` is the task to depend on.
 - New slices must be created with a public `index.ts` and imported as `@/<layer>/<slice>`; the oxlint
   rule rejects anything deeper.
 - `pages` may hold one reference per slice only after a slice exists; do not create `widgets`,
   `features` or `entities` folders before their first real slice, or steiger fails on
   `fsd/insignificant-slice`.
-- Playwright (plan 01-06) can assert the page title `Axon 5 DCB Showcase` and
-  `data-testid="app-shell"`. The `frontend/.prettierignore` and the FSD `data-testid` conventions are
-  already consistent with `frontend/e2e/` living outside `src`.
+- Playwright (plan 01-06) can assert the page title `Axon 5 DCB Courses` and
+  `data-testid="app-shell"`. The `courses-frontend/.prettierignore` and the FSD `data-testid` conventions are
+  already consistent with `courses-frontend/e2e/` living outside `src`.
 
 ---
 

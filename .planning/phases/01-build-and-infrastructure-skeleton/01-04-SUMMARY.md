@@ -7,10 +7,10 @@ tags: [gradle, processresources, bootjar, spa, smoke-script, process-group, axon
 
 requires:
   - phase: 01-build-and-infrastructure-skeleton
-    provides: "api and read service modules with their AxonServerRegistrationIT gates, :frontend:assembleFrontend producing dist/, and the compose stack"
+    provides: "api and read service modules with their AxonServerRegistrationIT gates, :courses-frontend:assembleFrontend producing dist/, and the compose stack"
 
 provides:
-  - "api bootJar carries the Vite bundle at BOOT-INF/classes/static (processResources dependsOn :frontend:assembleFrontend)"
+  - "api bootJar carries the Vite bundle at BOOT-INF/classes/static (processResources dependsOn :courses-frontend:assembleFrontend)"
   - "scripts/smoke-stack.sh: compose up --wait, per-service Axon registration gate, bootRun --parallel liveness polls, SPA-shell fetch, process-group teardown"
   - "PLAT-01 proven end to end: registration asserted inside write, read and api rather than scraped from /actuator/health"
 
@@ -24,7 +24,7 @@ actuals:
 tech-stack:
   added: []
   patterns:
-    - "A build artifact is copied, not built twice: processResources pulls :frontend/dist into static/ so the SPA ships inside the executable jar from the same ./gradlew build"
+    - "A build artifact is copied, not built twice: processResources pulls :courses-frontend/dist into static/ so the SPA ships inside the executable jar from the same ./gradlew build"
     - "A smoke script proves registration by running the per-module integration tests (--rerun), never by scraping /actuator/health"
     - "set -m job control plus kill -- \"-${RUN_PID}\" reaps the bootRun tasks and their three JVMs; setsid is unavailable on macOS"
     - "mkdir -p build before redirecting bootRun output, because a clean tree has no build/ directory"
@@ -33,7 +33,7 @@ key-files:
   created:
     - scripts/smoke-stack.sh
   modified:
-    - api/build.gradle.kts
+    - courses-api/build.gradle.kts
 
 key-decisions:
   - "Registration is verified inside the smoke script by ./gradlew integrationTest --tests '*AxonServerRegistrationIT' --rerun, so one command proves both liveness and Axon registration"
@@ -53,7 +53,7 @@ coverage:
     requirement: "TOPO-04"
     verification:
       - kind: other
-        ref: "./gradlew :api:bootJar --no-daemon && unzip -l api/build/libs/api-0.1.0-SNAPSHOT.jar#static/index.html once, static/assets/index-*.{js,css}"
+        ref: "./gradlew :courses-api:bootJar --no-daemon && unzip -l courses-api/build/libs/api-0.1.0-SNAPSHOT.jar#static/index.html once, static/assets/index-*.{js,css}"
         status: pass
     human_judgment: false
   - id: D2
@@ -98,9 +98,9 @@ plan_head_after: 2886e9f96a87c40364a21ba26fdb13307da2eb5d
 
 # Phase 1 Plan 04: Build and infrastructure skeleton Summary
 
-**The Vite bundle now ships inside `api`'s executable jar through `processResources`, and
+**The Vite bundle now ships inside `courses-api`'s executable jar through `processResources`, and
 `scripts/smoke-stack.sh` proves the live stack in one command: Compose healthy, all three services
-registered with Axon Server, three actuator liveness polls green, and the SPA shell served by `api`.**
+registered with Axon Server, three actuator liveness polls green, and the SPA shell served by `courses-api`.**
 
 ## Performance
 
@@ -113,16 +113,16 @@ registered with Axon Server, three actuator liveness polls green, and the SPA sh
 
 ## Accomplishments
 
-- `./gradlew :api:bootJar` produces a jar whose `BOOT-INF/classes/static/` holds exactly one
+- `./gradlew :courses-api:bootJar` produces a jar whose `BOOT-INF/classes/static/` holds exactly one
   `index.html`, one hashed JS bundle and one hashed CSS file — no duplicate entries
   (`unzip -l … | sort | uniq -d` is empty).
-- The copy is wired, not scripted: `processResources` depends on `:frontend:assembleFrontend` and
-  reads `frontend/dist`, so a clean `./gradlew build` produces both the SPA and the jar.
+- The copy is wired, not scripted: `processResources` depends on `:courses-frontend:assembleFrontend` and
+  reads `courses-frontend/dist`, so a clean `./gradlew build` produces both the SPA and the jar.
 - `./gradlew build --no-daemon` still succeeds and `--dry-run` contains zero `integrationTest`
   tasks, so the Docker-free build guarantee survives.
 - `./scripts/smoke-stack.sh` exits 0 and prints, in order: `port 8081: up`, `port 8082: up`,
   `port 8080: up`, `SPA shell served by api`, `stack is up: …`.
-- Registration is asserted inside each app — `write`, `read` and `api` `AxonServerRegistrationIT`
+- Registration is asserted inside each app — `courses-write`, `courses-read` and `courses-api` `AxonServerRegistrationIT`
   each ran one test with zero failures at 07:31 — not scraped from `/actuator/health`, which carries
   no Axon component in this starter combination (RESEARCH § P5).
 - Teardown is verified, not assumed: after a green run no process listens on 8080/8081/8082 and
@@ -130,19 +130,19 @@ registered with Axon Server, three actuator liveness polls green, and the SPA sh
 
 ## Task Commits
 
-1. **Task 1: Embed the SPA bundle in the `api` bootJar** — `f63f9bd` (feat)
+1. **Task 1: Embed the SPA bundle in the `courses-api` bootJar** — `f63f9bd` (feat)
 2. **Task 2: Add the full-stack smoke script** — `2886e9f` (feat)
 
 **Plan metadata:** the SUMMARY commit that follows (docs). Measured commits in this plan: 2.
 
 ## Files Created/Modified
 
-- `api/build.gradle.kts` — added, after the `jar { enabled = false }` line:
+- `courses-api/build.gradle.kts` — added, after the `jar { enabled = false }` line:
 
   ```kotlin
   tasks.named<ProcessResources>("processResources") {
-      dependsOn(":frontend:assembleFrontend")
-      from(project(":frontend").layout.projectDirectory.dir("dist")) { into("static") }
+      dependsOn(":courses-frontend:assembleFrontend")
+      from(project(":courses-frontend").layout.projectDirectory.dir("dist")) { into("static") }
   }
   ```
 
@@ -159,8 +159,8 @@ registered with Axon Server, three actuator liveness polls green, and the SPA sh
 
 | Command | Result |
 |---|---|
-| `./gradlew :api:bootJar --no-daemon` | pass — `BUILD SUCCESSFUL in 8s`, `:api:processResources` executed |
-| `unzip -l api/build/libs/api-0.1.0-SNAPSHOT.jar \| grep 'BOOT-INF/classes/static'` | pass — `static/index.html`, `static/assets/index-B7Fg37H_.js`, `static/assets/index-Clt-HEf6.css` |
+| `./gradlew :courses-api:bootJar --no-daemon` | pass — `BUILD SUCCESSFUL in 8s`, `:courses-api:processResources` executed |
+| `unzip -l courses-api/build/libs/api-0.1.0-SNAPSHOT.jar \| grep 'BOOT-INF/classes/static'` | pass — `static/index.html`, `static/assets/index-B7Fg37H_.js`, `static/assets/index-Clt-HEf6.css` |
 | `unzip -l … \| grep -c 'BOOT-INF/classes/static/index.html'` | pass — `1` |
 | `unzip -l … \| awk '{print $4}' \| sort \| uniq -d` | pass — no duplicate entries |
 | `./gradlew build --no-daemon` | pass — `BUILD SUCCESSFUL in 8s`, 39 tasks |
@@ -169,8 +169,8 @@ registered with Axon Server, three actuator liveness polls green, and the SPA sh
 | `shellcheck scripts/smoke-stack.sh` | pass — no findings |
 | `test -x scripts/smoke-stack.sh` | pass — `-rwxr-xr-x` |
 | `./scripts/smoke-stack.sh` | pass — `EXIT=0`, all expected lines printed |
-| `grep -E 'integrationTest' $TMPDIR/smoke-01-04b.log` | pass — `:api:integrationTest`, `:read:integrationTest`, `:write:integrationTest` all executed (not `UP-TO-DATE`) |
-| `grep 'tests=' <module>/build/test-results/integrationTest/*.xml` | pass — each of write/read/api: `tests="1" skipped="0" failures="0" errors="0"` |
+| `grep -E 'integrationTest' $TMPDIR/smoke-01-04b.log` | pass — `:courses-api:integrationTest`, `:courses-read:integrationTest`, `:courses-write:integrationTest` all executed (not `UP-TO-DATE`) |
+| `grep 'tests=' <module>/build/test-results/integrationTest/*.xml` | pass — each of courses-write/courses-read/courses-api: `tests="1" skipped="0" failures="0" errors="0"` |
 | `lsof -nP -iTCP:8080/8081/8082 -sTCP:LISTEN` after the run | pass — no listener; the process group was reaped |
 | `docker compose ps` after the run | pass — empty; `down -v --remove-orphans` ran |
 | `./scripts/format-check.sh` | pass — "All matched files use Prettier code style!" |
@@ -180,9 +180,9 @@ registered with Axon Server, three actuator liveness polls green, and the SPA sh
 ```text
 ==> docker compose up -d --wait
 ==> Axon registration for write, read and api
-> Task :api:integrationTest
-> Task :read:integrationTest
-> Task :write:integrationTest
+> Task :courses-api:integrationTest
+> Task :courses-read:integrationTest
+> Task :courses-write:integrationTest
 all three services registered with Axon Server
 ==> ./gradlew bootRun --parallel (log: build/bootrun.log)
 port 8081: up
@@ -215,8 +215,8 @@ liveness**
 
 **2. [Rule 2 - Missing critical functionality] `--rerun` on the registration gate**
 - **Found during:** Task 2 (second script run)
-- **Issue:** the first repeat run reported `:read:integrationTest UP-TO-DATE` and
-  `:write:integrationTest UP-TO-DATE`. The test task's inputs do not include Axon Server
+- **Issue:** the first repeat run reported `:courses-read:integrationTest UP-TO-DATE` and
+  `:courses-write:integrationTest UP-TO-DATE`. The test task's inputs do not include Axon Server
   availability, so a cached success would make every subsequent smoke run "pass" without ever
   touching Axon Server — a check that silently no-ops is worse than no check.
 - **Fix:** `--rerun` on the requested tasks (Gradle 9.7 supports it; dependencies are untouched), so
@@ -250,7 +250,7 @@ are all assertions over live state, with no placeholder or skipped step.
 
 ## Next Phase Readiness
 
-- TOPO-04 is closed: `./gradlew build` alone produces the SPA bundle inside `api`'s bootJar plus all
+- TOPO-04 is closed: `./gradlew build` alone produces the SPA bundle inside `courses-api`'s bootJar plus all
   three bootJars; no separate npm step is needed anywhere.
 - PLAT-01 is closed by two independent proofs: `./gradlew integrationTest --tests
   '*AxonServerRegistrationIT'` (also wired into the CI `build` job by Plan 01-05) and
@@ -266,6 +266,12 @@ are all assertions over live state, with no placeholder or skipped step.
 
 ## Self-Check: PASSED
 
-- `api/build.gradle.kts` and `scripts/smoke-stack.sh` exist; the script is executable (mode 100755).
+- `courses-api/build.gradle.kts` and `scripts/smoke-stack.sh` exist; the script is executable (mode 100755).
 - Both task commits (`f63f9bd`, `2886e9f`) are ancestors of `HEAD`.
 - `git rev-list --count 4c108d7..HEAD` = 2, matching the `commits: 2` frontmatter value.
+
+## Later changes
+
+- The plain `jar` is enabled again (`jar` is no longer disabled in `courses-api/build.gradle.kts`).
+- `scripts/smoke-stack.sh` no longer runs the integration suite; it proves registration by reading
+  the `Application connected` lines from the Compose-managed Axon Server log.
