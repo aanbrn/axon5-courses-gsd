@@ -271,6 +271,42 @@ the accessibility tree and assert test ids with an evaluate call. Its snapshots 
 land in `.playwright-mcp/`, which is gitignored. It is the project-level example precisely because
 it needs nothing but `npx`.
 
+## Session titles
+
+A session is named after the phase GSD is on: `Phase 2 — Session and message path`. The
+`phase-session-title` plugin under `.opencode/plugins/` does it, with no command to remember:
+
+- it reads `current_phase` and `current_phase_name` from `.planning/STATE.md`;
+- on title generation it supplies that string through the `title` session hook, so a new session is
+  never named after its first prompt;
+- on prompt admission it compares the session's current title and renames once when the phase moved,
+  so a long session follows `/gsd-progress --next`.
+
+The title follows the phase, not the branch: a session resumed on an older branch still names the
+phase it is on. A missing `STATE.md` or absent fields leave the harness title untouched, and a
+failed rename is logged without blocking the prompt. Plugins reload when the configuration changes;
+`/reload` forces it.
+
+Verify it at two levels:
+
+```bash
+npm --prefix .opencode/plugins/phase-session-title test        # parsing: node:test, no dependencies
+npm --prefix .opencode/plugins/phase-session-title run typecheck # the plugin against @opencode/plugin
+```
+
+CI runs the first after the formatting gate. The hooks need the OpenCode server and a model call, so
+after editing `index.ts` check one session by hand:
+
+```bash
+opencode run "reply with ok" >/dev/null
+opencode session list | head -1     # expect: Phase N — <name>
+opencode session delete <id>        # remove the throwaway session
+```
+
+`@opencode/plugin` is a devDependency pinned to the running OpenCode version (`2.2.7`). It exists so
+the type check and the IDE's TypeScript service can see the hook API; the runtime loads the plugin
+with its own copy. Bump the pin together with OpenCode.
+
 ## Build logic
 
 Shared build configuration lives in the `build-logic` included build, not in the module scripts:

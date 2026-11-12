@@ -42,6 +42,10 @@ jobs:
       - name: Repository formatting
         run: ./scripts/format-check.sh
 
+      # The plugin's parsing has no dependencies, so Node runs the test straight from source.
+      - name: Check the session-title plugin
+        run: node --test .opencode/plugins/phase-session-title/phase.test.ts
+
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 30

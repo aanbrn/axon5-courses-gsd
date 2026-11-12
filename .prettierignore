@@ -2,7 +2,12 @@
 .planning/
 AGENTS.md
 .agents/
-.opencode/
+.opencode/*
+# Hand-written plugins are source, not installer output.
+!.opencode/plugins/
+.opencode/plugins/*
+!.opencode/plugins/phase-session-title/
+!.opencode/plugins/phase-session-title/**
 .claude/
 .github/PULL_REQUEST_TEMPLATE/
 
