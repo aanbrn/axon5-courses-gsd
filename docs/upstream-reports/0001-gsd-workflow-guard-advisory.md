@@ -178,8 +178,9 @@ Both probes call the hook script directly; they do not run the OpenCode adapter 
 (plugins/gsd-core.js:753-757 invokes the hook for write-like tools and Bash; :360-366 blocks only on
 decision: "block" or exit code 2; :368-389 injects additionalContext as an advisory).
 
-The config schema names no key for workflow-entry enforcement: validKeys holds 126 bare key paths with
-no per-key descriptions, exactly three of them start with gates., and none contains "enforc"
+The rule appears in the generated instructions (AGENTS.md:434), and nothing in the schema key list names
+an enforcement setting: validKeys holds 126 bare key paths with no per-key descriptions, exactly three
+of them start with gates., and none contains "enforc"
 (bin/shared/config-schema.manifest.json:2, :4-129). The only entries that carry a description are the
 16 dynamic key patterns (:134-214), and they name no enforcement either. One of the three gates,
 gates.execute_next_plan, is read as a step condition inside a workflow
@@ -196,16 +197,14 @@ Drafted with assistance from an AI agent and reviewed before filing.
 
 ## Review
 
-| Pass                                               | Verdict                                                                                                                                                                                                                                                                           | Date       |
-| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| Evidence (agent)                                   | passed — every claim re-read at the cited line on 2026-11-12; the reproduction was executed                                                                                                                                                                                       | 2026-11-12 |
-| Independent (codex, `gpt-6.1-sol`, high)           | HOLD — C2 over-generalised (it omitted the subagent and exempt-filename carve-outs); C3 omitted `worktree-agent-*` and the fail-closed force-add exit; C7's schema key list does not show what the keys enforce; tone attributes intent; the reproduction does not run as written | 2026-11-12 |
-| Independent re-run #2 (codex, `gpt-6.1-sol`, high) | HOLD — C2 and C3 were still scoped wider than the code (substring `.planning/` match, unanchored `/\\.env/`, and fail-closed needs three conditions); C7 asserted a universal negative about schema semantics from a key list                                                     | 2026-11-12 |
-| Independent re-run #3 (codex, `gpt-6.1-sol`, high) | pending — must pass on this exact text before filing                                                                                                                                                                                                                              | —          |
-| Owner                                              | pending                                                                                                                                                                                                                                                                           | —          |
-
-The evidence row describes the text before this rewrite. The rewrite re-read every cited line on
-2026-11-12 and re-ran both reproduction blocks.
+| Pass                   | Verdict                                                                                                                                                                                                                                                 | Date       |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| Evidence (agent)       | passed — every claim re-read at the cited line on 2026-11-12; both reproductions executed                                                                                                                                                               | 2026-11-12 |
+| Independent #1 (codex) | HOLD — C2 over-generalised over the subagent and exempt-filename carve-outs; C3 omitted `worktree-agent-*` and the fail-closed exit; C7's key list does not show what the keys enforce; tone attributed intent; the reproduction did not run as written | 2026-11-12 |
+| Independent #2 (codex) | HOLD — C2 and C3 still wider than the code (substring `.planning/`, unanchored `/\.env/`, three conditions for the fail-closed block); C7 asserted a universal negative from a key list                                                                 | 2026-11-12 |
+| Independent #3 (codex) | HOLD — C2 missing the `.planning\` form and the closing line of the exempt list; C7 cited a description range that holds none for `runtimeStateKeys`; title claimed a universal about every setting                                                     | 2026-11-12 |
+| Independent #4 (codex) | pending — must pass on this exact text before filing                                                                                                                                                                                                    | —          |
+| Owner                  | pending — reads the committed file in full                                                                                                                                                                                                              | —          |
 
 ### Note on the first draft
 
