@@ -78,6 +78,41 @@ something:
 A phrase therefore reaches the script directly, or leads the agent to read the command file and
 follow it — the same work, without the command's fixed argument contract.
 
+### Never install GSD globally
+
+The installer defaults to a project scope when it is given `--opencode --local`, and that is the
+only form this repository uses. A global install is a different beast:
+
+- it writes the whole runtime into `~/.config/opencode/` — several hundred files under `gsd-core/`,
+  plus `agents/`, `commands/`, `skills/`, `hooks/`, `scripts/` and `plugins/` — and shadows the
+  project's `.opencode/gsd-core` for **every** session on the machine;
+- it appends a generated `<!-- GSD:profile-start -->` … `<!-- GSD:profile-end -->` block to the
+  user's `~/.config/opencode/AGENTS.md`, which is a personal file, not a GSD one;
+- it adds `mcp.gsd` and two permission entries scoped to `~/.config/opencode/gsd-core/*` to the
+  user's `opencode.jsonc`;
+- it creates `~/.gsd/` with user defaults and a research cache.
+
+**Spotting one:** `~/.config/opencode/gsd-file-manifest.json` carries `"scope": "global"`, and
+`~/.config/opencode/gsd-core/` exists.
+
+**Removing one:** work from the manifest, never from a glob — `agents/`, `commands/` and `skills/`
+are shared directories, and a wildcard delete takes other tools' files with it.
+
+1. Copy the installed path list out of `gsd-file-manifest.json` (`files` is a map of path → hash)
+   and keep it; it is the only record of what was installed.
+2. Delete exactly those paths, then the directories that held only them (`gsd-core/`, `hooks/`,
+   `scripts/`, `plugins/`), and the metadata: `.gsd-profile`, `.gsd-staging/`,
+   `gsd-file-manifest.json`, `gsd-install-state.json`, `gsd-migration-backups/`,
+   `gsd-migration-journal/`.
+3. Remove `mcp.gsd`, `permission.read` and `permission.external_directory` from the user's
+   `opencode.jsonc`, leaving every other server and rule alone.
+4. Cut the `GSD:profile` block out of `AGENTS.md`.
+5. Remove `~/.gsd/` if no GSD project needs the cached defaults.
+6. Restart OpenCode: hooks, plugins and commands are loaded into the running process.
+
+The project install under `.opencode/` is untouched by all of this, which is the point — it is the
+one that belongs to this repository.
+
 The project commands, and when to point at them instead of acting:
 
 | Command                  | Offer it when                                                                        |
