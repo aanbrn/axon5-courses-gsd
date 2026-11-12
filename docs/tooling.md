@@ -4,6 +4,15 @@ The repository builds and tests without any _agent_ tooling. It does need a smal
 tools, listed below; GSD, its commands and the MCP servers are optional and only add the `/gsd-*`
 workflows.
 
+This page covers the local toolchain and how to run it: what to install, how it is configured, and
+which commands drive it, including the CI job and the branch rules that the same toolchain enforces.
+It is the human-facing counterpart of `.planning/codebase/CONVENTIONS.md` § Tooling.
+
+It does not record decisions. An architectural choice with real alternatives lives in `docs/adr/`
+(Nygard format, `NNNN-slug.md`, indexed by `docs/adr/README.md`), and the policy for dependency
+updates and vulnerability scanning lives in ADR-0009 and ADR-0010. If a fact belongs to a decision
+rather than to the toolchain, it is not added here.
+
 ## Prerequisites
 
 Check the whole set with one command — it prints the version it found for each row, installs
@@ -451,12 +460,6 @@ be started first, ports never clash with the Compose stack, and no volume or eve
 run. Only the Docker daemon is required.
 
 There are no tag filters: move a test between directories instead of tagging it.
-
-## Architecture decisions
-
-Decisions with real alternatives are recorded as ADRs in `docs/adr/` (Nygard format,
-`NNNN-slug.md`); `docs/adr/README.md` is the index. GSD can ingest them with
-`/gsd-plan-phase --ingest docs/adr`. `.planning/PROJECT.md` keeps the short Key Decisions index.
 
 ## Running the stack locally
 
