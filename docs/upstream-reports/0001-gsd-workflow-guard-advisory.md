@@ -126,14 +126,14 @@ without a default statement. With it enabled the hook returns no block decision 
 own header says so:
 
   // This is a SOFT guard for edits — it advises, not blocks. The edit still proceeds.
-  (hooks/gsd-workflow-guard.js:7)
+  (hooks/gsd-workflow-guard.js:7-8)
 
 The scope, exactly as the code shows it: a top-level Edit whose path contains neither .planning/ nor
 .planning\ (both are substring tests) and matches none of the exempt patterns returns the advisory and
 no block decision.
 The patterns are .gitignore$, /\.env/ (unanchored, so it matches any path containing .env), CLAUDE.md$,
 AGENTS.md$, GEMINI.md$ and settings.json$
-(hooks/gsd-workflow-guard.js:326, :341, :346-351, :365-372). A subagent session is exempt as well
+(hooks/gsd-workflow-guard.js:326, :341, :346-352, :365-372). A subagent session is exempt as well
 (:326).
 
 Reproduction — run from a checkout with the package installed; H is the absolute, quoted path to the
@@ -176,7 +176,7 @@ on stdout, writes the same reason to stderr, and exits 2; on feature-probe it pr
 exits 0. On an internal error the hook re-derives that blocking context and blocks only when all
 three parts hold — a Bash payload, the guard enabled, and a determinable agent branch — with a reason
 stating the command was not analysed and not confirmed to be a force-add
-(:153-175, called at :386; the reason text at :128-130).
+(:153-175; the call at :385 and the block at :386; the reason text at :128-130).
 
 Both probes call the hook script directly; they do not run the OpenCode adapter end to end
 (plugins/gsd-core.js:756-758 invokes the hook for write-like tools and Bash; :360-366 blocks only on
