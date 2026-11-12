@@ -249,3 +249,28 @@ Captured context:
 
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.3: Harden the actuator endpoints (BACKLOG)
+
+**Goal**: Actuator endpoints are reachable only by the consumers that need them, with an explicit
+posture rather than a permissive default.
+**Requirements**: TBD
+**Plans**: 0 plans
+
+Captured context:
+
+- Three axes, decided together: authorization (Spring Security `EndpointRequest` for a management
+  chain), a separate management port or address (`management.server.port`, `management.server.address`)
+  that is not published, and which endpoints are exposed at all — today `health,info` through
+  `management.endpoints.web.exposure.include`.
+- The services differ: `courses-api` publishes `:8080`, `courses-write` and `courses-read` stay on the
+  Compose network. Any difference in policy has to be deliberate and documented.
+- `show-details` and `show-components` follow from the transport decision, not the other way around:
+  component detail is safe only where the endpoint is not publicly reachable.
+- Consumers to account for before moving the port or adding auth: the Compose healthchecks
+  (`/workspace/health-check` with `THC_PATH`), `scripts/smoke-stack.sh`, and any future readiness probe.
+- Constraint: standard Boot and Security mechanisms only; no hand-written servlet filters.
+- Trigger: Phase 2 introduces authentication, so the actuator posture is decided with it rather than
+  after it.
+- Related: `docs/tooling.md` explains why registration is proven by a test rather than by
+  `/actuator/health`; this item decides what health may be used for.
