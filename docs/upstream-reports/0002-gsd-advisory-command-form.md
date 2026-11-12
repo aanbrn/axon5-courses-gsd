@@ -1,7 +1,9 @@
-# 0002 — The workflow advisory names a command form the runtime does not have
+# 0002 — Comment for #6054: the hooks bundle ships an unrewritten command form
 
 |            |                                                                      |
 | ---------- | -------------------------------------------------------------------- |
+| Type       | Comment on an open maintenance task, not a new issue                 |
+| Target     | [#6054](https://github.com/open-gsd/gsd-core/issues/6054)            |
 | Dependency | `@opengsd/gsd-core`                                                  |
 | Version    | 1.20.1                                                               |
 | Ecosystem  | npm                                                                  |
@@ -10,138 +12,82 @@
 | Disclosure | Drafted with assistance from an AI agent and reviewed before filing. |
 | Found      | 2026-11-12                                                           |
 
-## Summary
+## Why a comment here, not a new issue
 
-The workflow advisory ends with "Consider using /gsd:fast for trivial fixes or /gsd:quick for larger
-changes" (`hooks/gsd-workflow-guard.js:369`; the same literal sits in the header comment at `:8`).
-`bin/lib/runtime-slash.cjs:11-17` states that installs register under the hyphen form, that the
-colon form is no longer routable by Claude Code skill installs, and that this module is the only
-place the runtime should decide which shape to emit. The core follows that: `formatGsdSlash` renders
-the name (`:43`), the instruction generator uses it (`bin/lib/profile-output.cjs:202-217`, producing
-`AGENTS.md:429-432`), and the body rewriter normalises `/gsd:<cmd>`
-(`bin/lib/runtime-artifact-conversion.cjs:492`, reused by the OpenCode skill writer at `:3207`). The
-hook still carries the literal on an OpenCode install, where the commands are registered as
-`/gsd-fast` and `/gsd-quick`. The ask is to emit the registered name.
+The defect class is already tracked twice: #376 (closed, COMPLETED 2026-05-28) names this hook and
+this literal, and #4859 swept `bin/lib`. #6054 is the open phase of #4909 that makes the install
+rewrite checkable — "no unrewritten command form may survive into any shipped artifact, compiled
+`bin/lib` included". What it does not name is the hooks bundle, and that is exactly the artifact
+observed here.
 
-## Claims and evidence
+A new issue would add a fourth entry for the same class. The missing information belongs on the task
+that will implement the check.
 
-The claims cite `@opengsd/gsd-core` package paths. In this install they resolve as:
+## What the comment asserts
 
-| Upstream path   | Resolves here as                                                     |
-| --------------- | -------------------------------------------------------------------- |
-| `hooks/*.js`    | `.opencode/hooks/*.js` (installed beside `gsd-core/`, not inside it) |
-| `plugins/*.js`  | `.opencode/plugins/*.js`                                             |
-| `bin/**`        | `.opencode/gsd-core/bin/**`                                          |
-| `workflows/**`  | `.opencode/gsd-core/workflows/**`                                    |
-| `commands/*.md` | `.opencode/commands/*.md`                                            |
+| #   | Claim                                                                                            | Evidence                                                            |
+| --- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| C1  | The installed hook carries the colon form at the advisory.                                       | `.opencode/hooks/gsd-workflow-guard.js:369`                         |
+| C2  | The header comment repeats the colon form.                                                       | `.opencode/hooks/gsd-workflow-guard.js:8`                           |
+| C3  | This install carries the hyphenated command files.                                               | `.opencode/commands/gsd-fast.md`, `.opencode/commands/gsd-quick.md` |
+| C4  | The advisory fires on a write-like call that is not exempt, and emits it as `WORKFLOW_ADVISORY`. | `hooks/gsd-workflow-guard.js:341`, `:346-352`, `:365-372`           |
+| C5  | A runtime-aware helper exists and the instruction generator already uses it.                     | `bin/lib/runtime-slash.cjs:228`; `bin/lib/profile-output.cjs:207`   |
+| C6  | #6054 asks for an artifact-level check and names compiled `bin/lib`.                             | the issue body, "What is the maintenance task?" and "Done when"     |
 
-Every line below was re-read at the cited line on 2026-11-12.
-
-| #   | Claim                                                                                                                                                                                      | Evidence                                                                                                                                                                                                                                  |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| C1  | The advisory hardcodes the colon form.                                                                                                                                                     | `hooks/gsd-workflow-guard.js:369` ("Consider using /gsd:fast ... or /gsd:quick ..."); the same form in the header comment at `:8` ("nudges Claude to use /gsd:quick or /gsd:fast")                                                        |
-| C2  | The core renders and reuses the runtime-correct form.                                                                                                                                      | `bin/lib/runtime-slash.cjs:11-17`, `:43` (`formatGsdSlash`, returning the hyphen form at `:81`), `:228` (`formatGsdSlashFor`); `bin/lib/profile-output.cjs:202-217`; `bin/lib/runtime-artifact-conversion.cjs:492`, `:3207`               |
-| C3  | The hook does not use that helper, and its literal is the form that module calls legacy.                                                                                                   | `grep -n 'formatGsdSlash\|runtime-slash' .opencode/hooks/gsd-workflow-guard.js` returns no match (exit 1); `hooks/gsd-workflow-guard.js:8`, `:369` carry the literal; `bin/lib/runtime-slash.cjs:11-15` ("no longer routable")            |
-| C4  | Prior art: #376 reports the same class of defect; it is closed as COMPLETED on 2026-05-28 and its body scopes it to Claude Code hook files. This report does not claim that a fix shipped. | #376, CLOSED / COMPLETED on 2026-05-28 ("Hook source files (.js) skipped by /gsd: → /gsd- rewriter — colon namespace leaks into ... workflow-guard messages on Claude Code installs"); the literal is still present in 1.20.1's hook (C1) |
-
-The `bin/lib/runtime-slash.cjs` comment attributes the `bin/lib` cleanup to `#3584` and the hyphen
-unification to `#2808`. Both numbers show different titles in the tracker today, so this report
-quotes the comment and does not rely on either.
-
-## Reproduction
-
-Run from the repository root of a checkout with `@opengsd/gsd-core` 1.20.1 installed. `H` is the
-absolute, quoted path to the hook as installed here; the hook sits beside `gsd-core/`, not inside
-it.
-
-### Block A — the advisory text
-
-```bash
-H="$PWD/.opencode/hooks/gsd-workflow-guard.js"
-P=$(mktemp -d) && mkdir -p "$P/.planning" "$P/src"
-printf '{"hooks":{"workflow_guard":true}}' > "$P/.planning/config.json"
-echo "{\"tool_name\":\"Edit\",\"cwd\":\"$P\",\"tool_input\":{\"file_path\":\"$P/src/App.kt\"}}" \
-  | node "$H"; echo " exit=$?"
-```
-
-Observed — one line of JSON, no `decision` field, `exit=0`; the `additionalContext` contains this
-sentence, and continues after it:
-
-```text
-Consider using /gsd:fast for trivial fixes or /gsd:quick for larger changes to maintain project state tracking.
-```
-
-Note: this calls the hook script directly; it does not run the OpenCode adapter end to end. The
-adapter invokes the hook for write-like tools and Bash (`plugins/gsd-core.js:753-757`) and injects
-`additionalContext` as an advisory (`:368-389`).
+The comment claims nothing about command registration, routing failure, or other runtimes. It
+reports what one installed tree contains and where the check described in #6054 would catch it.
 
 ## Draft
 
 ```text
-Title: The workflow guard's advisory emits the legacy /gsd: command form
+Checking a project-scope OpenCode install of 1.20.1: the hooks bundle ships an unrewritten colon form,
+and it does not look like an artifact the compiled bin/lib sweep would catch.
 
-On OpenCode the workflow advisory contains:
+Evidence from the installed tree:
 
-  "Consider using /gsd:fast for trivial fixes or /gsd:quick for larger changes"
-  (hooks/gsd-workflow-guard.js:369)
+- .opencode/hooks/gsd-workflow-guard.js:369 -
+  'Consider using /gsd:fast for trivial fixes or /gsd:quick for larger changes '
+- .opencode/hooks/gsd-workflow-guard.js:8 - the header comment repeats the colon form
+- the installed commands are commands/gsd-fast.md and commands/gsd-quick.md
 
-That is the legacy namespace. bin/lib/runtime-slash.cjs:11-15 records that installs register under
-the hyphen form and that the colon form "is no longer routable by Claude Code skill installs" - a
-statement about Claude Code installs, which is why the fix belongs in the helper rather than in one
-hook's literal.
+The advisory fires on a write-like tool call that is not exempt (.planning/ paths and a short allow-list
+of config/doc filenames), so on this runtime a user is told to run a command form the install does not
+carry.
 
-The install ships commands/gsd-fast.md and commands/gsd-quick.md, and those files refer to themselves
-as /gsd-fast (commands/gsd-fast.md:24) and /gsd-quick (commands/gsd-quick.md:130) — the hyphen form the
-module emits.
+Relevance to this phase: "Done when" says no unrewritten command form survives into any shipped
+artifact. The hooks bundle appears to be outside the manifest - the phase text names compiled bin/lib,
+not hooks/. If so, adding hooks/*.js catches this class and needs no runtime-specific logic: the check
+would go red on the file above.
 
-The core already renders the runtime-correct form: formatGsdSlash() at bin/lib/runtime-slash.cjs:43,
-wrapped for a project by formatGsdSlashFor() at :228, used by the instruction-file generator
-(bin/lib/profile-output.cjs:202-217) — which is where AGENTS.md:429-432 gets its /gsd-fast,
-/gsd-quick, /gsd-debug and /gsd-execute-phase names. The body rewriter normalises /gsd:<cmd> to the
-hyphen form (bin/lib/runtime-artifact-conversion.cjs:492). The hook carries the literal instead:
-grep for formatGsdSlash or runtime-slash in hooks/gsd-workflow-guard.js returns nothing.
+Two fixes at the emission site, either is fine by me:
 
-Reproduction — run from a checkout with the package installed; H is the absolute, quoted path to the
-installed hook, which sits beside gsd-core/, not inside it:
+- call formatGsdSlashFor(cwd, 'fast') / 'quick' - bin/lib/runtime-slash.cjs:228, the helper the
+  instruction generator already uses (bin/lib/profile-output.cjs:207);
+- or take the names from the same rendered source as the instruction file, so the advisory and the
+  instructions cannot disagree.
 
-  H="$PWD/.opencode/hooks/gsd-workflow-guard.js"
-  P=$(mktemp -d) && mkdir -p "$P/.planning" "$P/src"
-  printf '{"hooks":{"workflow_guard":true}}' > "$P/.planning/config.json"
-  echo "{\"tool_name\":\"Edit\",\"cwd\":\"$P\",\"tool_input\":{\"file_path\":\"$P/src/App.kt\"}}" \
-    | node "$H"; echo " exit=$?"
+Scope: one project-scope OpenCode install at 1.20.1. I did not test other runtimes, or a fresh install
+from the published package, so I cannot say whether the file is rewritten at install time for some
+runtimes and not this one.
 
-Observed: one line of JSON, no decision field, exit=0, and the additionalContext contains this
-sentence, continuing after it:
-
-  Consider using /gsd:fast for trivial fixes or /gsd:quick for larger changes to maintain project state tracking.
-
-This calls the hook script directly; it does not run the OpenCode adapter end to end: the adapter
-invokes the hook for write-like tools and Bash (plugins/gsd-core.js:753-757) and injects
-additionalContext as an advisory (:368-389).
-
-What is new relative to #376: that issue (CLOSED / COMPLETED on 2026-05-28) reports the same class —
-colon literals in hook .js files — and its body scopes it to Claude Code installs. This report does not
-claim that a fix shipped; it reports that the literal is still present in 1.20.1's workflow-guard hook.
-
-Suggested fix: use formatGsdSlash / formatGsdSlashFor(cwd, 'fast') in the advisory, or take the names
-the instruction generator already renders, so the two outputs in one install cannot disagree.
-Whether the hook predates that helper is not visible from the installed tree.
-
-Filed from a personal hobby project that uses GSD for a learning exercise; the finding is about the
-advisory's contract, not a production incident.
+Found while reading the guard for another question. No production incident - a hobby project using GSD
+for a learning exercise.
 
 Drafted with assistance from an AI agent and reviewed before filing.
 ```
 
 ## Review
 
-| Pass                                               | Verdict                                                                                                                                                                                                    | Date       |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| Evidence (agent)                                   | passed — claims re-read at the cited lines; reproduction executed                                                                                                                                          | 2026-11-12 |
-| Independent (codex, `gpt-6.1-sol`, high)           | HOLD — the claim that the colon form is the Claude Code command name is false; duplicate risk against #376; the reproduction does not run as written; the runnable block sits outside the `## Draft` fence | 2026-11-12 |
-| Independent re-run #2 (codex, `gpt-6.1-sol`, high) | HOLD — the command-file citations prove body wording, not registration; "#376 fixed" asserts a shipped fix from closure alone; the observed output does not end with the quoted sentence                   | 2026-11-12 |
-| Independent re-run #3 (codex, `gpt-6.1-sol`, high) | pending — must pass on this exact text before filing                                                                                                                                                       | —          |
-| Owner                                              | pending                                                                                                                                                                                                    | —          |
+| Pass                                     | Verdict                                                                               | Date       |
+| ---------------------------------------- | ------------------------------------------------------------------------------------- | ---------- |
+| Evidence (agent)                         | passed — C1-C6 re-read at the cited line or file on 2026-11-12                        | 2026-11-12 |
+| Independent (codex, `gpt-6.1-sol`, high) | pending — this text has not been reviewed; it is shorter than the retired issue draft | —          |
+| Owner                                    | pending                                                                               | —          |
 
-The evidence row describes the text before this rewrite. The rewrite re-read every cited line on
-2026-11-12 and re-ran the reproduction block.
+## History
+
+This file began as a draft issue. Four independent passes held it, every time on the same point: it
+could not establish, without install-level evidence, that the hyphenated names are what the runtime
+registers, and without that it read as a duplicate of #376. Retargeting as a comment removes the
+claim that needed the evidence — #6054 already asks for the check, and the comment only adds the
+artifact class it does not name.
