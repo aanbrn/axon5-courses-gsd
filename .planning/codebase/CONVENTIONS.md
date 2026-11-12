@@ -160,6 +160,7 @@ reader; style preferences are not findings.
 - A skill is the opposite case: it is meant to fire on intent, so a matching phrase loads it without redirection.
 - The build prerequisites are JDK, Node with npm, `actionlint`, Docker, Compose v2 and `pack`; `actionlint` is the only one whose absence fails `./gradlew build`, because `lintWorkflows` is part of `check`. The table and install hints live in `docs/tooling.md`.
 - `.opencode/` is generated and gitignored. Only hand-written project commands under `.opencode/commands/` are tracked, each with an explicit unignore line in `.gitignore`; never hand-edit the generated `opencode.json`.
+- Hand-written plugins live under `.opencode/plugins/` and are gitignored except for an explicit unignore block per plugin — the directory, its contents, and a re-ignore for `node_modules/`; `git commit` is gated by the `commit-guard` plugin, whose escape hatch is `COMMIT_GUARD=off`.
 - Project MCP servers belong in the tracked root `opencode.jsonc` under `mcp.servers`; secrets use `{env:NAME}`. Auth- or IDE-bound servers (GitHub via `gh mcp`, IntelliJ) belong in the user's global config instead — the `connect-mcp-servers` skill detects, installs and wires them, handing back only the steps a human must do.
 - `docs/tooling.md` is the human-facing version of these rules.
 

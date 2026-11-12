@@ -46,6 +46,10 @@ jobs:
       - name: Check the session-title plugin
         run: node --test .opencode/plugins/phase-session-title/phase.test.ts
 
+      # The guard's detection table has no dependencies either: Node runs it from source.
+      - name: Check the commit-guard plugin
+        run: node --test .opencode/plugins/commit-guard/guard.test.ts
+
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
