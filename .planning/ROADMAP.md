@@ -270,8 +270,9 @@ Captured context:
 - Consumers to account for before moving the port or adding auth: the Compose healthchecks
   (`/workspace/health-check` with `THC_PATH`), `scripts/smoke-stack.sh`, and any future readiness probe.
 - Constraint: standard Boot and Security mechanisms only; no hand-written servlet filters.
-- Trigger: Phase 2 introduces authentication, so the actuator posture is decided with it rather than
-  after it.
+- Trigger: Phase 2 introduces authentication, so the actuator posture is decided inside Phase 2's
+  discussion rather than after it. Reviewed on 2026-11-12 and kept in the backlog for that reason:
+  promoting it as a phase would place it after Phase 11, which is later than its own trigger asks for.
 - Related: `docs/tooling.md` explains why registration is proven by a test rather than by
   `/actuator/health`; this item decides what health may be used for.
 
