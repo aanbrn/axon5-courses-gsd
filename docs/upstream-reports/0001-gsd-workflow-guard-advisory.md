@@ -1,16 +1,31 @@
-# 0001 — settings.md does not say that hooks.workflow_guard only advises
+# 0001 — settings.md omits a description the configuration guide already gives
 
-|            |                                                                      |
-| ---------- | -------------------------------------------------------------------- |
-| Type       | Enhancement issue                                                    |
-| Template   | `.github/ISSUE_TEMPLATE/enhancement.yml`                             |
-| Dependency | `@opengsd/gsd-core`                                                  |
-| Version    | 1.20.1                                                               |
-| Ecosystem  | npm                                                                  |
-| Upstream   | https://github.com/open-gsd/gsd-core                                 |
-| Status     | `not filed`                                                          |
-| Disclosure | Drafted with assistance from an AI agent and reviewed before filing. |
-| Found      | 2026-11-12                                                           |
+|            |                                                                                                                                                                  |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Type       | Enhancement issue                                                                                                                                                |
+| Template   | `.github/ISSUE_TEMPLATE/enhancement.yml`                                                                                                                         |
+| Dependency | `@opengsd/gsd-core`                                                                                                                                              |
+| Version    | 1.20.1                                                                                                                                                           |
+| Ecosystem  | npm                                                                                                                                                              |
+| Upstream   | https://github.com/open-gsd/gsd-core                                                                                                                             |
+| Status     | `closed (wontfix)` — not filed                                                                                                                                   |
+| Resolution | The published configuration guide already documents the option at `docs/CONFIGURATION.md:854` (v1.20.1); only the internal `workflows/settings.md` line omits it |
+| Disclosure | Drafted with assistance from an AI agent and reviewed before filing.                                                                                             |
+| Found      | 2026-11-12                                                                                                                                                       |
+
+## Outcome
+
+**Not filed.** The premise of this draft was that a user configuring `hooks.workflow_guard` cannot
+learn what it does. That is false: `docs/CONFIGURATION.md:854` in v1.20.1 documents the option, its
+advisory behaviour, the `agent-*`/`worktree-agent-*` force-add exception and its fail-closed rule.
+
+What remains is that `workflows/settings.md:509` lists the key as `true/false` without repeating
+that description. A single reference line that duplicates a published table is below this project's
+own threshold for an upstream report - "it changed how this project worked, or would change it for
+anyone walking the same path". Nothing here changed how the project worked, and the published guide
+already answers the question a user would ask.
+
+The draft below is retained as the record of what was considered and why it stopped.
 
 ## Summary
 
@@ -49,7 +64,7 @@ enforcement mechanism exists anywhere in the framework; the draft makes no such 
 - **no breaking changes** — a consequence of that, not an inspection;
 - **no new command, workflow or concept** — the submitter's reading of `CONTRIBUTING.md`.
 
-## Draft
+## Draft (retained for the record — not posted)
 
 ````text
 ### Pre-submission checklist
@@ -227,18 +242,13 @@ The preflight boxes are the submitter's statements:
 
 ## Review
 
-| Pass                              | Verdict                                                                                                                                                                                                                                                                      | Date       |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| Evidence (agent)                  | passed — C1-C8 re-read on 2026-11-12                                                                                                                                                                                                                                         | 2026-11-12 |
-| Independent #1 (codex)            | HOLD — C2/C3 wider than the code; C7 unsupported by a key list; tone attributed intent; the reproduction did not run as written                                                                                                                                              | 2026-11-12 |
-| Independent #2 (codex)            | HOLD — still wider than the code (substring `.planning/`, unanchored `/\.env/`, three conditions); C7 asserted a universal negative                                                                                                                                          | 2026-11-12 |
-| Independent #3 (codex)            | HOLD — `.planning\` missing; a citation range holding no description; title claimed a universal; an unescaped `                                                                                                                                                              |            | ` broke the table; git identity dependency | 2026-11-12 |
-| Independent #4 (codex)            | HOLD — the crash-path citation pointed at the emit; the "edit proceeds" wording exceeded the probe                                                                                                                                                                           | 2026-11-12 |
-| Independent #5 (codex)            | HOLD — the Draft kept older line ranges; the summary implied a universal absence of enforcement                                                                                                                                                                              | 2026-11-12 |
-| Independent #6 (codex)            | HOLD — "on an internal error" wider than an error caught by the outer handler                                                                                                                                                                                                | 2026-11-12 |
-| Independent #7 (codex, templated) | HOLD — the blocking ask was an incomplete specification (no workflow-active signal, `/gsd-fast` runs inline); the scope named a description surface that does not exist; the reproduction would not render as code in an issue body; all-three-gates evidence was incomplete | 2026-11-12 |
-| Independent #8 (codex)            | pending — must pass on this exact text, including every required template field                                                                                                                                                                                              | —          |
-| Owner                             | pending — reads the committed file, confirms the attestation, then posts                                                                                                                                                                                                     | —          |
+| Pass                              | Verdict                                                                                                                                                                                                                       | Date       |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| Evidence (agent)                  | passed — C1-C8 re-read on 2026-11-12                                                                                                                                                                                          | 2026-11-12 |
+| Independent #1-#6 (codex)         | HOLD, six times — claim scope, citation ranges, tone, and the public text drifting from the claim table; each round's reasons are in the commits that answered them                                                           | 2026-11-12 |
+| Independent #7 (codex, templated) | HOLD — the blocking ask was an incomplete specification; the scope named a configuration-schema description that does not exist; the reproductions would not render in an issue body; all-three-gates evidence was incomplete | 2026-11-12 |
+| Independent #8 (codex)            | HOLD — `docs/CONFIGURATION.md:854` in v1.20.1 already documents the option, which refutes the draft's premise; the remaining ask is too thin to file                                                                          | 2026-11-12 |
+| Decision                          | closed, not filed — the finding is real but already documented upstream                                                                                                                                                       | 2026-11-12 |
 
 ## History
 
@@ -246,3 +256,8 @@ Nine independent passes. The request narrowed at each one, and the last narrowin
 one: the draft asked for a blocking mode it could not specify without inventing a workflow-active
 signal, and pointed at a config-schema description that does not exist. What remains is one
 documentation line, which is what the evidence supports without speculation.
+
+Pass #8 is the one that decided the outcome: the reviewer looked outside the files this report had
+been citing, found the published configuration table, and the draft's premise collapsed. That is the
+gate working as intended - a report that survives citation checking can still be wrong about the
+world.
