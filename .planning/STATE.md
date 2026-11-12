@@ -4,10 +4,10 @@ current_phase: 2
 current_phase_name: Session and message path
 status: planning
 stopped_at: Completed 01-06-PLAN.md
-last_updated: "2026-11-12T04:16:16.746Z"
+last_updated: "2026-11-12T06:21:06.586Z"
 last_activity: 2026-11-12
-last_activity_desc: "Extracted the Phase 1 learnings and the estimation calibration; the health-indicator mechanics moved into the architecture notes"
-state_head: b822e96
+last_activity_desc: Completed quick task 261112-hv4: rewrite both upstream drafts against the review verdicts
+state_head: 3015d158b5c2af9394ff00a969059557c7a5c398
 progress:
   total_phases: 11
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-10)
 Phase: 2 of 11 (Session and message path) — NOT STARTED
 Plan: 0 of TBD
 Status: Ready to plan
-Last activity: 2026-11-12 — Extracted the Phase 1 learnings and the estimation calibration; the health-indicator mechanics moved into the architecture notes
+Last activity: 2026-11-12 — Completed quick task 261112-hv4: rewrite both upstream drafts against the review verdicts
 
 Progress: [█░░░░░░░░░] 9%
 
@@ -78,6 +78,12 @@ Progress: [█░░░░░░░░░] 9%
   decision slices exist; integration suites count, frontend measured separately with Vitest.
 - Container image scanning — backlog item 999.2: Trivy/Grype once an image is actually published;
   there is nothing to scan while images stay local.
+
+## Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+| --- | ----------- | ---- | ------ | --------- |
+| 261112-hv4 | rewrite both upstream drafts against the review verdicts | 2026-11-12 | 3015d15 | [261112-hv4-rewrite-both-upstream-drafts-against-the](./quick/261112-hv4-rewrite-both-upstream-drafts-against-the/) |
 
 ## Session Continuity
 
